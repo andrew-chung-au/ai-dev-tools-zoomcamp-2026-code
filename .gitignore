@@ -1,0 +1,39 @@
+# =========================
+# Python / Django / uv
+# =========================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments (uv defaults to .venv)
+.venv/
+venv/
+env/
+
+# Django stuff
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# Environments & Secrets
+.env
+.env.local
+.env.*
+
+# =========================
+# IDEs and OS Files
+# =========================
+
+# VS Code / Codespaces
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
