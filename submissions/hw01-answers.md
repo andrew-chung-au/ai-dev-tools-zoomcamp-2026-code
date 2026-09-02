@@ -8,62 +8,58 @@ All placeholders are clearly marked so I can update them later.
 ## 1. Which coding agent did you use? *(1 point)*
 
 **Answer:**  
-> _PLACEHOLDER — e.g., Claude Code_
+- Claude Code
 
 ---
 
 ## 2. What are the 2–4 features your spec settled on? *(1 point)*
 
 **Answer:**  
-- _FEATURE PLACEHOLDER 1_  
-- _FEATURE PLACEHOLDER 2_  
-- _FEATURE PLACEHOLDER 3 (optional)_  
-- _FEATURE PLACEHOLDER 4 (optional)_
+- Rotation tracking that only moves a chore to the next person when marked done  
+- No accounts/login — single household scope  
+- Works on both shared devices (e.g., fridge tablet) and individual phones/browsers  
+- Overdue chores show a visual indicator (highlight/red), no notifications
 
 ---
 
 ## 3. Which file do you edit to include your app in the Django project? *(1 point)*
 
 **Answer:**  
-> _PLACEHOLDER — choose one:_  
-> - settings.py  
-> - manage.py  
-> - urls.py  
-> - wsgi.py
+- settings.py  
 
 ---
 
 ## 4. What is task 1 in your `backlog.md`? *(1 point)*
 
 **Answer:**  
-> _PLACEHOLDER — copy the first task from your backlog_
+## 1. Data model
+Create `Person` and `Chore` models in the `chores` app.
+- `Person`: name (unique within household).
+- `Chore`: name, `assigned_to` (FK to Person), `last_done_at`, `done` flag or
+  status.
+- Rotation order needs a concrete field even before the algorithm is decided
+  — e.g. a `Person.order` int or an ordered `rotation` list on `Chore` — so
+  later tasks aren't blocked. **Depends on open question:** rotation
+  order/algorithm among multiple people. Default to simple fixed list order
+  (by `Person.order`) unless told otherwise.
+- Leave chore metadata (frequency, difficulty/weight) out of v1 unless the
+  open question gets resolved first — add fields only when there's a
+  confirmed need.
 
 ---
 
 ## 5. Which command starts the Django development server? *(1 point)*
 
 **Answer:**  
-> _PLACEHOLDER — choose one:_  
-> - `uv run python manage.py runserver`  
-> - `uv run django-admin startserver`  
-> - `python manage.py start`  
-> - `uv run python app.py runserver`
+- `uv run python manage.py runserver`  
 
 ---
 
 ## 6. Which command runs the tests in the terminal? *(1 point)*
 
 **Answer:**  
-> _PLACEHOLDER — choose one:_  
-> - `pytest`  
-> - `python manage.py test`  
-> - `python -m django run_tests`  
-> - `django-admin test`
+- `python manage.py test`  
 
 ---
 
-## 📌 Notes
-
-- Replace each placeholder before committing to your repo.
-- You can rename this file to something like `answers.md` or `homework.md`.
 
