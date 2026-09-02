@@ -1,6 +1,7 @@
 # ai-dev-tools-zoomcamp-2026-code
 Coursework for the 2026 AI Dev Tools Zoomcamp by DataTalks.Club
 
+```text
 ai-dev-tools-zoomcamp-2026-code/
 ├── README.md
 ├── LICENSE
@@ -38,3 +39,4 @@ ai-dev-tools-zoomcamp-2026-code/
     ├── hw02-answers.md
     ├── hw03-answers.md
     └── hw04-answers.md
+```
