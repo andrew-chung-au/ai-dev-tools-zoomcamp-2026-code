@@ -28,34 +28,34 @@ All placeholders are clearly marked so I can update them later.
 ## 3. What is the sha1 hash for this commit? *(1 point)*
 
 **Answer:**  
-- c1c601a
+- c03b69c
 
 ---
 
 ## 4. Which command do you use to start the frontend? *(1 point)*
 
 **Answer:**  
-- `bun run dev`
+- `make dev`
 
 ---
 
 ## 5. Which command do you use to start the backend? *(1 point)*
 
 **Answer:**  
-- [PLACEHOLDER: Insert backend start command]
+- `make run`
 
 ---
 
 ## 6. Which URL does the frontend use to talk to the backend? *(1 point)*
 
 **Answer:**  
-- [PLACEHOLDER: Insert backend API URL]
+- http://localhost:8091/api
 
 ---
 
 ## 7. Which command do you use for running tests? *(1 point)*
 
 **Answer:**  
-- [PLACEHOLDER: Insert test command]
+- `make test`
 
 ---
