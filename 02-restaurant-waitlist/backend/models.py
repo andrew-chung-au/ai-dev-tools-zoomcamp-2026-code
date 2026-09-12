@@ -6,7 +6,7 @@ double as the API response bodies for their respective entities.
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 PartySizeClass = Literal["A", "B", "C", "D"]
 
@@ -38,6 +38,8 @@ class VenueMessageSettings(BaseModel):
 
 
 class Venue(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     logoPlaceholderLabel: str
@@ -73,6 +75,8 @@ class StaffSession(BaseModel):
 
 
 class Table(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     minCapacity: int
@@ -85,6 +89,8 @@ class Table(BaseModel):
 
 
 class WaitlistEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     venueId: str
     serviceDate: str
@@ -114,6 +120,8 @@ class WaitlistEntry(BaseModel):
 
 
 class LargePartyEnquiry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     reference: str
     venueId: str
@@ -126,6 +134,8 @@ class LargePartyEnquiry(BaseModel):
 
 
 class Notification(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     entryId: Optional[str] = None
     recipientType: NotificationRecipientType

@@ -44,6 +44,23 @@ npm run dev
 - Seating is not strictly FIFO: staff pick any compatible available table.
 - Guest status pages are reached with an opaque mock access token returned by the service.
 
+## Configuration
+
+Copy `.env.example` to `.env` if you need to override defaults:
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+
+- `VITE_API_BASE_URL` — Backend API URL.  
+  Default: `http://localhost:8091/api`
+
+- `VITE_USE_MOCK_SERVICE` — If set to `true`, the frontend uses the in‑browser mock service instead of calling the backend.  
+  Useful for frontend‑only development.  
+  Tests always use the mock regardless of this setting.
+
 ### Tests
 
 Run `bunx vitest run` — the suite covers guest submission and validation, large-party enquiries, ticket stability, cancellation, notification and return-by behaviour, table compatibility rules, and completion releasing a table.

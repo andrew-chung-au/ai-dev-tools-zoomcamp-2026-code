@@ -8,8 +8,11 @@ STAFF_PASSWORD = "waitlist123"
 
 
 @pytest.fixture
-def client():
-    app = create_app()
+def client(tmp_path):
+    # Each test gets its own SQLite file so tests stay isolated from each
+    # other and from a developer's local waitlist.db.
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    app = create_app(database_url=database_url)
     return TestClient(app)
 
 

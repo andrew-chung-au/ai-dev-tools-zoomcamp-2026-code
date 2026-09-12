@@ -2,10 +2,11 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.config import ALLOWED_ORIGINS
+from backend.config import ALLOWED_ORIGINS, DATABASE_URL
+from backend.db import Base, make_engine, make_session_factory
 from backend.errors import ServiceError
 from backend.notifications import ConsoleNotificationProvider
-from backend.repository import create_seed_repository
+from backend.repositories import seed_if_empty
 from backend.routers import (
     auth,
     dashboard,
@@ -18,7 +19,7 @@ from backend.routers import (
 )
 
 
-def create_app() -> FastAPI:
+def create_app(database_url: str | None = None) -> FastAPI:
     app = FastAPI(title="Restaurant Waitlist API", version="0.1.0")
 
     app.add_middleware(
@@ -28,7 +29,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.state.repository = create_seed_repository()
+    engine = make_engine(database_url or DATABASE_URL)
+    Base.metadata.create_all(bind=engine)
+    session_factory = make_session_factory(engine)
+    with session_factory() as session:
+        seed_if_empty(session)
+        session.commit()
+
+    app.state.session_factory = session_factory
+    app.state.staff_sessions = {}
     app.state.notifier = ConsoleNotificationProvider()
 
     @app.exception_handler(ServiceError)

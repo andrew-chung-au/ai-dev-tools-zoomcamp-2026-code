@@ -621,7 +621,40 @@ Important cases include:
 - SQLite persistence survives backend restart.
 - Public responses do not expose staff-only or other-guest data.
 
-## 28. Future enhancements
+## 28. Environment variables
+
+The application uses a small number of environment variables to configure frontend-backend communication and database connectivity.
+
+### Frontend
+
+Frontend environment variables are documented in `frontend/.env.example`.
+
+Key variables:
+
+- `VITE_API_BASE_URL` — Backend API base URL.  
+  Default: `http://localhost:8091/api`
+
+- `VITE_USE_MOCK_SERVICE` — If set to `true`, the frontend uses the in‑browser mock service instead of calling the backend.  
+  Useful for frontend‑only development.  
+  Frontend tests always use the mock regardless of this setting.
+
+### Backend
+
+Backend environment variables are configured in `backend/config.py`.
+
+Key variables:
+
+- `DATABASE_URL` — Database connection string.  
+  Default: `sqlite:///./waitlist.db` (SQLite file in the project root).  
+  Can be changed to another SQLite path or a different database (e.g. PostgreSQL) by updating this variable.
+
+- `ALLOWED_ORIGINS` — Comma‑separated list of frontend origins allowed by CORS.  
+  Default: `http://localhost:8080,http://127.0.0.1:8080`  
+  Override when running the frontend on a different host or port.
+
+These variables should not be committed in `.env` files. Use `.env.example` files as templates for local development.
+
+## 29. Future enhancements
 
 Potential follow-up work includes:
 
