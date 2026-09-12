@@ -1,6 +1,6 @@
 # Welcome to your Lovable project
 
-This project was built with [Lovable](https://lovable.dev).
+This project was built with [Lovable](https://lovable.dev). It implements the frontend for **Table Ready**, a configurable restaurant waitlist manager.
 
 ## Build with Lovable
 

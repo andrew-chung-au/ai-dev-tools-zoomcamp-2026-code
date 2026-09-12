@@ -1,4 +1,4 @@
-# Configurable Restaurant Waitlist Manager
+# Table Ready — Configurable Restaurant Waitlist Manager
 
 ## 1. Product summary
 
