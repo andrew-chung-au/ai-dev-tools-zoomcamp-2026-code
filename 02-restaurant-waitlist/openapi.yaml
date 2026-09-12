@@ -1,0 +1,1134 @@
+openapi: 3.0.3
+info:
+  title: Restaurant Waitlist API
+  description: >
+    API contract derived from the frontend `WaitlistService` interface
+    (frontend/src/services/waitlistService.ts). One operation per service
+    method; request/response shapes mirror the TypeScript types exactly.
+  version: 0.1.0
+servers:
+  - url: /api
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+  - name: venue
+  - name: dashboard
+  - name: waitlist-entries
+  - name: guest
+  - name: tables
+  - name: large-party-enquiries
+  - name: notifications
+
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Staff login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated staff session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffSession"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /venue:
+    get:
+      operationId: getVenue
+      tags: [venue]
+      summary: Get the configured venue
+      description: >
+        Also used by the unauthenticated guest check-in page to display venue
+        name, logo, join message, and open status, so this endpoint requires
+        no bearer token.
+      security: []
+      responses:
+        "200":
+          description: Venue configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venue"
+    patch:
+      operationId: updateVenue
+      tags: [venue]
+      summary: Update venue configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVenueRequest"
+      responses:
+        "200":
+          description: Updated venue configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venue"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get staff dashboard data for a service date
+      parameters:
+        - name: serviceDate
+          in: query
+          required: false
+          description: Defaults to the venue's current service date.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardData"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries:
+    get:
+      operationId: listWaitlistEntries
+      tags: [waitlist-entries]
+      summary: List waitlist entries for a service date, with optional filters
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by status. Omit or "all" for every status.
+          schema:
+            type: string
+            enum:
+              [pending, waiting, notified, seated, completed, cancelled, no_show, all]
+        - name: partySizeClass
+          in: query
+          required: false
+          description: Filter by current seating class. Omit or "all" for every class.
+          schema:
+            type: string
+            enum: [A, B, C, D, all]
+        - name: reviewRequiredOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: needsAttentionOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: serviceDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Matching waitlist entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaitlistEntry"
+        "401":
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createGuestEntry
+      tags: [guest]
+      summary: Guest submits the QR check-in form to join the waitlist
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGuestEntryRequest"
+      responses:
+        "201":
+          description: >
+            Either a new waitlist entry, a large-party enquiry (when the
+            party size exceeds the venue's maximum), or a closed-waitlist
+            message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateGuestEntryResult"
+        "400":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/approve:
+    post:
+      operationId: approveEntry
+      tags: [waitlist-entries]
+      summary: Approve a pending entry (staff-review mode) onto the waitlist
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/cancel:
+    post:
+      operationId: cancelEntry
+      tags: [waitlist-entries]
+      summary: Staff cancels an entry
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/notify:
+    post:
+      operationId: notifyEntry
+      tags: [waitlist-entries]
+      summary: Notify a waiting guest that a table is ready
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          description: The updated entry and the notification record it generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/return-to-waiting:
+    post:
+      operationId: returnToWaiting
+      tags: [waitlist-entries]
+      summary: Correct an accidental notification, returning the entry to waiting
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/extend-return-by:
+    post:
+      operationId: extendReturnBy
+      tags: [waitlist-entries]
+      summary: Extend the grace-period return-by time for a notified entry
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [additionalMinutes]
+              properties:
+                additionalMinutes:
+                  type: integer
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/wait-estimate:
+    patch:
+      operationId: updateWaitEstimate
+      tags: [waitlist-entries]
+      summary: Override the estimated wait for an entry
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estimatedWaitMinutes]
+              properties:
+                estimatedWaitMinutes:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/seat:
+    post:
+      operationId: seatEntry
+      tags: [waitlist-entries]
+      summary: Seat a party at a compatible, available table
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeatEntryRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/no-show:
+    post:
+      operationId: markNoShow
+      tags: [waitlist-entries]
+      summary: Mark a notified entry as a no-show
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/complete:
+    post:
+      operationId: completeEntry
+      tags: [waitlist-entries]
+      summary: Complete a seated party and release its table
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /waitlist-entries/{entryId}/compatible-tables:
+    get:
+      operationId: listCompatibleTables
+      tags: [tables]
+      summary: List tables that are available and large enough for an entry
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          description: Compatible tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Table"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /guest/entries/{accessToken}:
+    get:
+      operationId: getGuestEntry
+      tags: [guest]
+      summary: Get a guest's own ticket status via their opaque access token
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AccessToken"
+      responses:
+        "200":
+          description: Guest-facing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStatus"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /guest/entries/{accessToken}/cancel:
+    post:
+      operationId: cancelGuestEntry
+      tags: [guest]
+      summary: Guest cancels their own active entry
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AccessToken"
+      responses:
+        "200":
+          $ref: "#/components/responses/WaitlistEntry"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /tables:
+    get:
+      operationId: listTables
+      tags: [tables]
+      summary: List all tables
+      responses:
+        "200":
+          description: All tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Table"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /large-party-enquiries:
+    post:
+      operationId: createLargePartyEnquiry
+      tags: [large-party-enquiries]
+      summary: Create a large-party enquiry directly
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LargePartyEnquiryRequest"
+      responses:
+        "201":
+          description: Created enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LargePartyEnquiry"
+        "400":
+          $ref: "#/components/responses/Error"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notification records, most recent first
+      responses:
+        "200":
+          description: Notification records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createNotificationEvent
+      tags: [notifications]
+      summary: Record a notification event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationEventRequest"
+      responses:
+        "201":
+          description: Created notification record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Staff session token returned by POST /auth/login.
+
+  parameters:
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema:
+        type: string
+    AccessToken:
+      name: accessToken
+      in: path
+      required: true
+      description: Opaque, unguessable guest access token.
+      schema:
+        type: string
+
+  responses:
+    WaitlistEntry:
+      description: The updated waitlist entry
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WaitlistEntry"
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    PartySizeClass:
+      type: string
+      enum: [A, B, C, D]
+
+    WaitlistStatus:
+      type: string
+      enum:
+        [pending, waiting, notified, seated, completed, cancelled, no_show]
+
+    EntryMode:
+      type: string
+      enum: [automatic, staff_review]
+
+    NotificationChannel:
+      type: string
+      enum: [sms, email, in_app]
+
+    NotificationRecipientType:
+      type: string
+      enum: [guest, staff]
+
+    NotificationTemplateType:
+      type: string
+      enum:
+        [table_ready, confirmation, cancellation, large_party_staff_alert]
+
+    NotificationDeliveryStatus:
+      type: string
+      enum: [queued, sent, failed]
+
+    VenueMessageSettings:
+      type: object
+      required:
+        - joinMessage
+        - policyAcknowledgementMessage
+        - confirmationMessage
+        - tableReadyMessage
+        - cancellationMessage
+        - closedWaitlistMessage
+        - largePartyMessage
+        - largePartyConfirmationMessage
+      properties:
+        joinMessage:
+          type: string
+        policyAcknowledgementMessage:
+          type: string
+        confirmationMessage:
+          type: string
+        tableReadyMessage:
+          type: string
+        cancellationMessage:
+          type: string
+        closedWaitlistMessage:
+          type: string
+        largePartyMessage:
+          type: string
+        largePartyConfirmationMessage:
+          type: string
+
+    DefaultWaitEstimateMinutes:
+      type: object
+      required: [A, B, C, D]
+      properties:
+        A:
+          type: integer
+        B:
+          type: integer
+        C:
+          type: integer
+        D:
+          type: integer
+
+    PartialDefaultWaitEstimateMinutes:
+      type: object
+      properties:
+        A:
+          type: integer
+        B:
+          type: integer
+        C:
+          type: integer
+        D:
+          type: integer
+
+    Venue:
+      type: object
+      required:
+        - id
+        - name
+        - logoPlaceholderLabel
+        - contactPhone
+        - staffNotificationEmail
+        - menuUrl
+        - maxOnlinePartySize
+        - gracePeriodMinutes
+        - entryMode
+        - waitlistOpen
+        - defaultWaitEstimateMinutes
+        - messages
+        - serviceDate
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        logoPlaceholderLabel:
+          type: string
+        contactPhone:
+          type: string
+        staffNotificationEmail:
+          type: string
+        menuUrl:
+          type: string
+        maxOnlinePartySize:
+          type: integer
+        gracePeriodMinutes:
+          type: integer
+        entryMode:
+          $ref: "#/components/schemas/EntryMode"
+        waitlistOpen:
+          type: boolean
+        defaultWaitEstimateMinutes:
+          $ref: "#/components/schemas/DefaultWaitEstimateMinutes"
+        messages:
+          $ref: "#/components/schemas/VenueMessageSettings"
+        serviceDate:
+          type: string
+          format: date
+
+    StaffSession:
+      type: object
+      required:
+        [token, staffName, username, venueId, issuedAt, mocked]
+      properties:
+        token:
+          type: string
+        staffName:
+          type: string
+        username:
+          type: string
+        venueId:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        mocked:
+          type: boolean
+          description: >
+            True while the API is backed by the in-memory/mock
+            implementation; expected to be false once a persistent backend
+            is in place.
+
+    Table:
+      type: object
+      required:
+        [id, name, capacity, occupied, occupyingTicketCode, occupyingEntryId]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        capacity:
+          type: integer
+        occupied:
+          type: boolean
+        occupyingTicketCode:
+          type: string
+          nullable: true
+        occupyingEntryId:
+          type: string
+          nullable: true
+
+    WaitlistEntry:
+      type: object
+      required:
+        - id
+        - venueId
+        - serviceDate
+        - ticketCode
+        - ticketSequence
+        - guestName
+        - partySize
+        - originalPartySize
+        - originalPartyClass
+        - currentSeatingClass
+        - reviewRequired
+        - reviewReason
+        - mobileNumber
+        - seatingNote
+        - status
+        - arrivalTime
+        - estimatedWaitMinutes
+        - notifiedAt
+        - returnByAt
+        - seatedAt
+        - completedAt
+        - cancelledAt
+        - tableId
+        - tableName
+        - seatingOverrideReason
+        - accessToken
+      properties:
+        id:
+          type: string
+        venueId:
+          type: string
+        serviceDate:
+          type: string
+          format: date
+        ticketCode:
+          type: string
+          example: A-001
+        ticketSequence:
+          type: integer
+        guestName:
+          type: string
+        partySize:
+          type: integer
+        originalPartySize:
+          type: integer
+        originalPartyClass:
+          $ref: "#/components/schemas/PartySizeClass"
+        currentSeatingClass:
+          $ref: "#/components/schemas/PartySizeClass"
+        reviewRequired:
+          type: boolean
+        reviewReason:
+          type: string
+          nullable: true
+        mobileNumber:
+          type: string
+        seatingNote:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/WaitlistStatus"
+        arrivalTime:
+          type: string
+          format: date-time
+        estimatedWaitMinutes:
+          type: integer
+        notifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        returnByAt:
+          type: string
+          format: date-time
+          nullable: true
+        seatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        tableId:
+          type: string
+          nullable: true
+        tableName:
+          type: string
+          nullable: true
+        seatingOverrideReason:
+          type: string
+          nullable: true
+        accessToken:
+          type: string
+          description: Opaque, unguessable token used for guest access to this entry.
+
+    LargePartyEnquiry:
+      type: object
+      required:
+        - id
+        - reference
+        - venueId
+        - guestName
+        - partySize
+        - mobileNumber
+        - note
+        - createdAt
+        - message
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+          example: LP-001
+        venueId:
+          type: string
+        guestName:
+          type: string
+        partySize:
+          type: integer
+        mobileNumber:
+          type: string
+        note:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+
+    Notification:
+      type: object
+      required:
+        - id
+        - entryId
+        - recipientType
+        - channel
+        - templateType
+        - renderedMessage
+        - deliveryStatus
+        - createdAt
+        - sentAt
+        - errorMessage
+      properties:
+        id:
+          type: string
+        entryId:
+          type: string
+          nullable: true
+        recipientType:
+          $ref: "#/components/schemas/NotificationRecipientType"
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        templateType:
+          $ref: "#/components/schemas/NotificationTemplateType"
+        renderedMessage:
+          type: string
+        deliveryStatus:
+          $ref: "#/components/schemas/NotificationDeliveryStatus"
+        createdAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+
+    CreateGuestEntryRequest:
+      type: object
+      required: [guestName, partySize, mobileNumber, policyAcknowledged]
+      properties:
+        guestName:
+          type: string
+        partySize:
+          type: integer
+        mobileNumber:
+          type: string
+        seatingNote:
+          type: string
+        policyAcknowledged:
+          type: boolean
+
+    CreateGuestEntryResult:
+      oneOf:
+        - $ref: "#/components/schemas/CreateGuestEntryResultEntry"
+        - $ref: "#/components/schemas/CreateGuestEntryResultLargePartyEnquiry"
+        - $ref: "#/components/schemas/CreateGuestEntryResultClosed"
+      discriminator:
+        propertyName: kind
+        mapping:
+          entry: "#/components/schemas/CreateGuestEntryResultEntry"
+          large_party_enquiry: "#/components/schemas/CreateGuestEntryResultLargePartyEnquiry"
+          closed: "#/components/schemas/CreateGuestEntryResultClosed"
+
+    CreateGuestEntryResultEntry:
+      type: object
+      required: [kind, entry, accessToken, message]
+      properties:
+        kind:
+          type: string
+          enum: [entry]
+        entry:
+          $ref: "#/components/schemas/WaitlistEntry"
+        accessToken:
+          type: string
+        message:
+          type: string
+
+    CreateGuestEntryResultLargePartyEnquiry:
+      type: object
+      required: [kind, enquiry, message]
+      properties:
+        kind:
+          type: string
+          enum: [large_party_enquiry]
+        enquiry:
+          $ref: "#/components/schemas/LargePartyEnquiry"
+        message:
+          type: string
+
+    CreateGuestEntryResultClosed:
+      type: object
+      required: [kind, message]
+      properties:
+        kind:
+          type: string
+          enum: [closed]
+        message:
+          type: string
+
+    GuestStatus:
+      type: object
+      required:
+        - ticketCode
+        - guestName
+        - partySize
+        - status
+        - estimatedWaitMinutes
+        - message
+        - notifiedAt
+        - returnByAt
+        - needsAttention
+        - cancellationAllowed
+        - venueName
+        - venueLogoPlaceholderLabel
+        - serviceDate
+      properties:
+        ticketCode:
+          type: string
+        guestName:
+          type: string
+        partySize:
+          type: integer
+        status:
+          $ref: "#/components/schemas/WaitlistStatus"
+        estimatedWaitMinutes:
+          type: integer
+        message:
+          type: string
+        notifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        returnByAt:
+          type: string
+          format: date-time
+          nullable: true
+        needsAttention:
+          type: boolean
+        cancellationAllowed:
+          type: boolean
+        venueName:
+          type: string
+        venueLogoPlaceholderLabel:
+          type: string
+        serviceDate:
+          type: string
+          format: date
+
+    SeatEntryRequest:
+      type: object
+      required: [tableId]
+      properties:
+        tableId:
+          type: string
+        seatingOverrideReason:
+          type: string
+
+    UpdateVenueRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        contactPhone:
+          type: string
+        staffNotificationEmail:
+          type: string
+        menuUrl:
+          type: string
+        maxOnlinePartySize:
+          type: integer
+        gracePeriodMinutes:
+          type: integer
+        entryMode:
+          $ref: "#/components/schemas/EntryMode"
+        waitlistOpen:
+          type: boolean
+        defaultWaitEstimateMinutes:
+          $ref: "#/components/schemas/PartialDefaultWaitEstimateMinutes"
+        messages:
+          type: object
+          description: Partial VenueMessageSettings; only provided keys are updated.
+          properties:
+            joinMessage:
+              type: string
+            policyAcknowledgementMessage:
+              type: string
+            confirmationMessage:
+              type: string
+            tableReadyMessage:
+              type: string
+            cancellationMessage:
+              type: string
+            closedWaitlistMessage:
+              type: string
+            largePartyMessage:
+              type: string
+            largePartyConfirmationMessage:
+              type: string
+
+    NotificationResult:
+      type: object
+      required: [entry, notification]
+      properties:
+        entry:
+          $ref: "#/components/schemas/WaitlistEntry"
+        notification:
+          $ref: "#/components/schemas/Notification"
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    LargePartyEnquiryRequest:
+      type: object
+      required: [guestName, partySize, mobileNumber]
+      properties:
+        guestName:
+          type: string
+        partySize:
+          type: integer
+        mobileNumber:
+          type: string
+        note:
+          type: string
+
+    DashboardSummary:
+      type: object
+      required: [activeWaiting, pendingReview, notified, needsAttention]
+      properties:
+        activeWaiting:
+          type: integer
+        pendingReview:
+          type: integer
+        notified:
+          type: integer
+        needsAttention:
+          type: integer
+
+    DashboardData:
+      type: object
+      required: [venue, serviceDate, summary, entries, tables]
+      properties:
+        venue:
+          $ref: "#/components/schemas/Venue"
+        serviceDate:
+          type: string
+          format: date
+        summary:
+          $ref: "#/components/schemas/DashboardSummary"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WaitlistEntry"
+        tables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Table"
+
+    CreateNotificationEventRequest:
+      type: object
+      required: [entryId, recipientType, channel, templateType, renderedMessage]
+      properties:
+        entryId:
+          type: string
+          nullable: true
+        recipientType:
+          $ref: "#/components/schemas/NotificationRecipientType"
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        templateType:
+          $ref: "#/components/schemas/NotificationTemplateType"
+        renderedMessage:
+          type: string
