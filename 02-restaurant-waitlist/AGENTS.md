@@ -1,3 +1,10 @@
+## Scope
+
+- Work only within `02-restaurant-waitlist/`.
+- Do not modify, stage, move, delete, or commit any file outside this directory.
+- Do not use `git add .` or `git add -A`.
+- Before proposing a commit, show `git status --short`, `git diff --check`, and the exact paths that would be staged.
+
 Commands
 
 - `uv sync` - install dependencies

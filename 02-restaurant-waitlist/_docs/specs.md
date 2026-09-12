@@ -128,9 +128,12 @@ Rules:
 
 ## 9. Tables
 
-An admin can create, edit, activate, deactivate, and remove tables.
+
+An admin or manager can create, edit, activate, deactivate, and remove tables.
+
 
 Each table has:
+
 
 - Display name or number.
 - Minimum capacity.
@@ -139,7 +142,49 @@ Each table has:
 - Current availability state.
 - Optional notes.
 
-The MVP supports table capacities such as 2, 4, and 6. Future versions may support table combinations. A party cannot be seated at a table that is unavailable or whose capacity is insufficient.
+
+The MVP supports table capacities such as 2, 4, and 6. Future versions may support table combinations. A party cannot be seated at a table that is inactive, unavailable, or whose capacity is insufficient.
+
+
+### Table availability states
+
+
+In the MVP, each table has one of the following availability states:
+
+
+- `available` – the table is free and can be assigned to a party.
+- `occupied` – the table is currently assigned to a seated party.
+- `needs_tidying` – the party has left; the table is not yet ready for new guests.
+
+
+Transitions:
+
+
+- When a party is seated at a table, its state becomes `occupied`.
+- When the party is marked `completed`, the table transitions to `needs_tidying`.
+- Staff can manually mark a `needs_tidying` table as `available` when it is ready.
+- Staff can also manually mark an `occupied` table as `needs_tidying` if needed (for example, if guests leave without being properly checked out).
+
+
+Only `available` tables can be selected when seating a new party.
+
+
+### Table management UI
+
+
+The staff dashboard includes a Tables view where authorised staff can:
+
+
+- List all tables with their name, capacities, active state, and availability state.
+- Create a new table (name, minimum capacity, maximum capacity, optional notes).
+- Edit an existing table’s name, capacities, active state, and notes.
+- Deactivate a table (for example, if it is out of service) without deleting it.
+- Reactivate an inactive table.
+- Remove a table when it is no longer needed.
+- Change a table’s availability state between `available` and `needs_tidying` as appropriate.
+
+
+Seating and completion of parties update table availability automatically; staff do not need to manually mark a table `occupied` or `available` in those normal flows.
 
 ## 10. Opening schedule
 
@@ -499,7 +544,7 @@ Name, username or email, password hash, role, active state, and timestamps.
 
 ### Table
 
-Name, capacity, active state, availability state, and notes.
+Name or number, minimum capacity, maximum capacity, active state, availability state (`available`, `occupied`, `needs_tidying`), and optional notes.
 
 ### WaitlistEntry
 
@@ -543,6 +588,8 @@ Development stages:
 6. Preserve the service and API contracts while changing persistence.
 
 The backend should separate routers, schemas, application services, repositories, authentication, notification providers, and persistence models sufficiently to support later changes.
+
+The OpenAPI contract must include table-management operations sufficient for the staff Tables view: list tables, create a table, update a table (including name, capacities, active state, and notes), delete a table, and list tables compatible with a given waitlist entry. Availability state transitions are primarily driven by seating and completion flows, with manual overrides exposed as table updates.
 
 ## 27. Testing expectations
 
