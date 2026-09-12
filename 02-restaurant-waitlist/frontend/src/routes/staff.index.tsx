@@ -560,7 +560,7 @@ function SeatDialog({
                     className="h-5 w-5"
                   />
                   <label htmlFor={`table-${table.id}`} className="text-sm">
-                    Table {table.name} · seats {table.capacity}
+                    Table {table.name} · seats {table.minCapacity}-{table.maxCapacity}
                   </label>
                 </div>
               ))}

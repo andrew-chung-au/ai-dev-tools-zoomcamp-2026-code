@@ -159,37 +159,134 @@ describe("seating", () => {
     expect(seated.status).toBe("seated");
     const tables = await service.listTables();
     const table = tables.find((t) => t.id === compatible[0]!.id)!;
-    expect(table.occupied).toBe(true);
+    expect(table.availabilityState).toBe("occupied");
     expect(table.occupyingTicketCode).toBe(seated.ticketCode);
   });
 
   it("rejects seating at an occupied table", async () => {
     const tables = await service.listTables();
-    const occupied = tables.find((t) => t.occupied)!;
+    const occupied = tables.find((t) => t.availabilityState === "occupied")!;
     const entry = (await waitingEntry())!;
     await expect(service.seatEntry(entry.id, { tableId: occupied.id })).rejects.toMatchObject({
       code: "table_occupied",
     });
   });
 
+  it("rejects seating at an inactive table", async () => {
+    const tables = await service.listTables();
+    const inactive = tables.find((t) => !t.active)!;
+    const entries = await service.listWaitlistEntries({ status: "waiting" });
+    const compatibleParty = entries.find(
+      (e) => e.partySize >= inactive.minCapacity && e.partySize <= inactive.maxCapacity,
+    )!;
+    await expect(
+      service.seatEntry(compatibleParty.id, { tableId: inactive.id }),
+    ).rejects.toMatchObject({ code: "table_inactive" });
+  });
+
+  it("rejects seating at a table that needs tidying", async () => {
+    const tables = await service.listTables();
+    const needsTidying = tables.find((t) => t.active && t.availabilityState === "needs_tidying")!;
+    const entries = await service.listWaitlistEntries({ status: "waiting" });
+    const compatibleParty = entries.find(
+      (e) => e.partySize >= needsTidying.minCapacity && e.partySize <= needsTidying.maxCapacity,
+    )!;
+    await expect(
+      service.seatEntry(compatibleParty.id, { tableId: needsTidying.id }),
+    ).rejects.toMatchObject({ code: "table_not_available" });
+  });
+
   it("rejects seating at a table with insufficient capacity", async () => {
     const entries = await service.listWaitlistEntries({ status: "waiting" });
     const bigParty = entries.find((e) => e.partySize > 2)!;
     const tables = await service.listTables();
-    const small = tables.find((t) => t.capacity === 2 && !t.occupied)!;
+    const small = tables.find((t) => t.maxCapacity === 2 && t.availabilityState === "available")!;
     await expect(service.seatEntry(bigParty.id, { tableId: small.id })).rejects.toMatchObject({
       code: "table_too_small",
     });
   });
 
-  it("releases the table when the party is completed", async () => {
+  it("marks the table as needing tidying when the party is completed", async () => {
     const entry = (await waitingEntry())!;
     const compatible = await service.listCompatibleTables(entry.id);
     const seated = await service.seatEntry(entry.id, { tableId: compatible[0]!.id });
     const completed = await service.completeEntry(seated.id);
     expect(completed.status).toBe("completed");
     const tables = await service.listTables();
-    expect(tables.find((t) => t.id === compatible[0]!.id)!.occupied).toBe(false);
+    const table = tables.find((t) => t.id === compatible[0]!.id)!;
+    expect(table.availabilityState).toBe("needs_tidying");
+    expect(table.occupyingEntryId).toBeNull();
+  });
+});
+
+describe("table management", () => {
+  it("creates a table with default availability and active state", async () => {
+    const table = await service.createTable({ name: "T9", minCapacity: 2, maxCapacity: 4 });
+    expect(table.active).toBe(true);
+    expect(table.availabilityState).toBe("available");
+    expect(table.notes).toBeNull();
+  });
+
+  it("rejects an invalid capacity range", async () => {
+    await expect(
+      service.createTable({ name: "T10", minCapacity: 4, maxCapacity: 2 }),
+    ).rejects.toMatchObject({ code: "invalid_max_capacity" });
+  });
+
+  it("updates a table's name, capacities, active state and notes", async () => {
+    const table = await service.createTable({ name: "T11", minCapacity: 2, maxCapacity: 4 });
+    const updated = await service.updateTable(table.id, {
+      name: "T11b",
+      minCapacity: 3,
+      maxCapacity: 5,
+      active: false,
+      notes: "Reserved for large parties",
+    });
+    expect(updated.name).toBe("T11b");
+    expect(updated.minCapacity).toBe(3);
+    expect(updated.maxCapacity).toBe(5);
+    expect(updated.active).toBe(false);
+    expect(updated.notes).toBe("Reserved for large parties");
+  });
+
+  it("deletes a table", async () => {
+    const table = await service.createTable({ name: "T12", minCapacity: 2, maxCapacity: 4 });
+    await service.deleteTable(table.id);
+    const tables = await service.listTables();
+    expect(tables.some((t) => t.id === table.id)).toBe(false);
+  });
+
+  it("refuses to delete an occupied table", async () => {
+    const tables = await service.listTables();
+    const occupied = tables.find((t) => t.availabilityState === "occupied")!;
+    await expect(service.deleteTable(occupied.id)).rejects.toMatchObject({ code: "table_occupied" });
+  });
+
+  it("moves a needs_tidying table back to available", async () => {
+    const tables = await service.listTables();
+    const needsTidying = tables.find((t) => t.availabilityState === "needs_tidying")!;
+    const updated = await service.setTableAvailability(needsTidying.id, {
+      availabilityState: "available",
+    });
+    expect(updated.availabilityState).toBe("available");
+  });
+
+  it("does not allow marking an occupied table available directly", async () => {
+    const tables = await service.listTables();
+    const occupied = tables.find((t) => t.availabilityState === "occupied")!;
+    await expect(
+      service.setTableAvailability(occupied.id, { availabilityState: "available" }),
+    ).rejects.toMatchObject({ code: "invalid_availability_transition" });
+  });
+
+  it("allows manually marking an occupied table as needing tidying", async () => {
+    const tables = await service.listTables();
+    const occupied = tables.find((t) => t.availabilityState === "occupied")!;
+    const updated = await service.setTableAvailability(occupied.id, {
+      availabilityState: "needs_tidying",
+    });
+    expect(updated.availabilityState).toBe("needs_tidying");
+    expect(updated.occupyingEntryId).toBeNull();
   });
 });
 

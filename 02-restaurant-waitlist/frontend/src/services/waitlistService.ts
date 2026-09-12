@@ -55,13 +55,37 @@ export interface StaffSession {
   mocked: true;
 }
 
+export type TableAvailabilityState = "available" | "occupied" | "needs_tidying";
+
 export interface Table {
   id: string;
   name: string;
-  capacity: number;
-  occupied: boolean;
+  minCapacity: number;
+  maxCapacity: number;
+  active: boolean;
+  availabilityState: TableAvailabilityState;
+  notes: string | null;
   occupyingTicketCode: string | null;
   occupyingEntryId: string | null;
+}
+
+export interface CreateTableRequest {
+  name: string;
+  minCapacity: number;
+  maxCapacity: number;
+  notes?: string | undefined;
+}
+
+export interface UpdateTableRequest {
+  name?: string;
+  minCapacity?: number;
+  maxCapacity?: number;
+  active?: boolean;
+  notes?: string | null;
+}
+
+export interface SetTableAvailabilityRequest {
+  availabilityState: "available" | "needs_tidying";
 }
 
 export interface WaitlistEntry {
@@ -258,6 +282,10 @@ export interface WaitlistService {
   completeEntry(entryId: string): Promise<WaitlistEntry>;
   listTables(): Promise<Table[]>;
   listCompatibleTables(entryId: string): Promise<Table[]>;
+  createTable(input: CreateTableRequest): Promise<Table>;
+  updateTable(tableId: string, input: UpdateTableRequest): Promise<Table>;
+  deleteTable(tableId: string): Promise<void>;
+  setTableAvailability(tableId: string, input: SetTableAvailabilityRequest): Promise<Table>;
   createLargePartyEnquiry(input: LargePartyEnquiryRequest): Promise<LargePartyEnquiry>;
   listNotifications(): Promise<Notification[]>;
   createNotificationEvent(input: {

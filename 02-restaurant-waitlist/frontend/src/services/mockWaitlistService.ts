@@ -8,6 +8,7 @@ import {
   type ActivityEvent,
   type CreateGuestEntryRequest,
   type CreateGuestEntryResult,
+  type CreateTableRequest,
   type DashboardData,
   type GuestStatus,
   type LargePartyEnquiry,
@@ -20,8 +21,10 @@ import {
   type NotificationTemplateType,
   type PartySizeClass,
   type SeatEntryRequest,
+  type SetTableAvailabilityRequest,
   type StaffSession,
   type Table,
+  type UpdateTableRequest,
   type UpdateVenueRequest,
   type Venue,
   type WaitlistEntry,
@@ -100,12 +103,72 @@ function createSeedState(): MockState {
   };
 
   const tables: Table[] = [
-    { id: "tbl_1", name: "T1", capacity: 2, occupied: false, occupyingTicketCode: null, occupyingEntryId: null },
-    { id: "tbl_2", name: "T2", capacity: 2, occupied: false, occupyingTicketCode: null, occupyingEntryId: null },
-    { id: "tbl_3", name: "T3", capacity: 4, occupied: false, occupyingTicketCode: null, occupyingEntryId: null },
-    { id: "tbl_4", name: "T4", capacity: 4, occupied: false, occupyingTicketCode: null, occupyingEntryId: null },
-    { id: "tbl_5", name: "T5", capacity: 6, occupied: false, occupyingTicketCode: null, occupyingEntryId: null },
-    { id: "tbl_6", name: "T6", capacity: 6, occupied: false, occupyingTicketCode: null, occupyingEntryId: null },
+    {
+      id: "tbl_1",
+      name: "T1",
+      minCapacity: 1,
+      maxCapacity: 2,
+      active: true,
+      availabilityState: "available",
+      notes: null,
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    },
+    {
+      id: "tbl_2",
+      name: "T2",
+      minCapacity: 1,
+      maxCapacity: 2,
+      active: true,
+      availabilityState: "needs_tidying",
+      notes: "Wobbly leg, needs a shim.",
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    },
+    {
+      id: "tbl_3",
+      name: "T3",
+      minCapacity: 2,
+      maxCapacity: 4,
+      active: true,
+      availabilityState: "available",
+      notes: null,
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    },
+    {
+      id: "tbl_4",
+      name: "T4",
+      minCapacity: 2,
+      maxCapacity: 4,
+      active: true,
+      availabilityState: "available",
+      notes: "Near the window.",
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    },
+    {
+      id: "tbl_5",
+      name: "T5",
+      minCapacity: 4,
+      maxCapacity: 6,
+      active: true,
+      availabilityState: "available",
+      notes: null,
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    },
+    {
+      id: "tbl_6",
+      name: "T6",
+      minCapacity: 4,
+      maxCapacity: 6,
+      active: false,
+      availabilityState: "needs_tidying",
+      notes: "Out of service — leg repair scheduled.",
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    },
   ];
 
   const state: MockState = {
@@ -172,7 +235,7 @@ function createSeedState(): MockState {
       accessToken: `tok_${Math.random().toString(36).slice(2, 10)}${seq}`,
     };
     if (table) {
-      table.occupied = true;
+      table.availabilityState = "occupied";
       table.occupyingEntryId = entry.id;
       table.occupyingTicketCode = entry.ticketCode;
     }
@@ -670,10 +733,19 @@ export class MockWaitlistService implements WaitlistService {
     if (!entry.tableId) return;
     const table = this.state.tables.find((t) => t.id === entry.tableId);
     if (table) {
-      table.occupied = false;
+      table.availabilityState = "needs_tidying";
       table.occupyingEntryId = null;
       table.occupyingTicketCode = null;
     }
+  }
+
+  private isTableCompatible(table: Table, partySize: number): boolean {
+    return (
+      table.active &&
+      table.availabilityState === "available" &&
+      partySize >= table.minCapacity &&
+      partySize <= table.maxCapacity
+    );
   }
 
   async seatEntry(entryId: string, input: SeatEntryRequest): Promise<WaitlistEntry> {
@@ -683,19 +755,28 @@ export class MockWaitlistService implements WaitlistService {
       throw new MockServiceError("invalid_status", "This entry cannot be seated.");
     const table = this.state.tables.find((t) => t.id === input.tableId);
     if (!table) throw new MockServiceError("table_not_found", "That table does not exist.");
-    if (table.occupied)
+    if (!table.active)
+      throw new MockServiceError("table_inactive", `${table.name} is inactive.`);
+    if (table.availabilityState === "occupied")
       throw new MockServiceError("table_occupied", `${table.name} is already occupied.`);
-    if (table.capacity < entry.partySize)
+    if (table.availabilityState === "needs_tidying")
+      throw new MockServiceError("table_not_available", `${table.name} needs tidying before it can be seated.`);
+    if (table.maxCapacity < entry.partySize)
       throw new MockServiceError(
         "table_too_small",
-        `${table.name} seats ${table.capacity} and this party is ${entry.partySize}.`,
+        `${table.name} seats up to ${table.maxCapacity} and this party is ${entry.partySize}.`,
+      );
+    if (table.minCapacity > entry.partySize)
+      throw new MockServiceError(
+        "table_capacity_mismatch",
+        `${table.name} seats a minimum of ${table.minCapacity} and this party is ${entry.partySize}.`,
       );
     entry.status = "seated";
     entry.seatedAt = new Date().toISOString();
     entry.tableId = table.id;
     entry.tableName = table.name;
     entry.seatingOverrideReason = input.seatingOverrideReason?.trim() || null;
-    table.occupied = true;
+    table.availabilityState = "occupied";
     table.occupyingEntryId = entry.id;
     table.occupyingTicketCode = entry.ticketCode;
     this.logActivity(entry.id, "seated", `${entry.ticketCode} seated at ${table.name}.`);
@@ -733,8 +814,107 @@ export class MockWaitlistService implements WaitlistService {
     await delay(150);
     const entry = this.findEntry(entryId);
     return structuredClone(
-      this.state.tables.filter((t) => !t.occupied && t.capacity >= entry.partySize),
+      this.state.tables.filter((t) => this.isTableCompatible(t, entry.partySize)),
     );
+  }
+
+  private findTable(tableId: string): Table {
+    const table = this.state.tables.find((t) => t.id === tableId);
+    if (!table) throw new MockServiceError("table_not_found", "That table does not exist.");
+    return table;
+  }
+
+  async createTable(input: CreateTableRequest): Promise<Table> {
+    await delay(280);
+    if (!input.name.trim())
+      throw new MockServiceError("invalid_name", "Table name is required.");
+    if (!Number.isInteger(input.minCapacity) || input.minCapacity < 1)
+      throw new MockServiceError(
+        "invalid_min_capacity",
+        "Minimum capacity must be a whole number of one or more.",
+      );
+    if (!Number.isInteger(input.maxCapacity) || input.maxCapacity < input.minCapacity)
+      throw new MockServiceError(
+        "invalid_max_capacity",
+        "Maximum capacity must be a whole number at least as large as the minimum capacity.",
+      );
+    const table: Table = {
+      id: nextId("tbl"),
+      name: input.name.trim(),
+      minCapacity: input.minCapacity,
+      maxCapacity: input.maxCapacity,
+      active: true,
+      availabilityState: "available",
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+      occupyingTicketCode: null,
+      occupyingEntryId: null,
+    };
+    this.state.tables.push(table);
+    this.logActivity(null, "table_created", `Table ${table.name} created.`);
+    return structuredClone(table);
+  }
+
+  async updateTable(tableId: string, input: UpdateTableRequest): Promise<Table> {
+    await delay(280);
+    const table = this.findTable(tableId);
+    const nextMinCapacity = input.minCapacity ?? table.minCapacity;
+    const nextMaxCapacity = input.maxCapacity ?? table.maxCapacity;
+    if (input.name !== undefined) {
+      if (!input.name.trim())
+        throw new MockServiceError("invalid_name", "Table name is required.");
+      table.name = input.name.trim();
+    }
+    if (input.minCapacity !== undefined || input.maxCapacity !== undefined) {
+      if (!Number.isInteger(nextMinCapacity) || nextMinCapacity < 1)
+        throw new MockServiceError(
+          "invalid_min_capacity",
+          "Minimum capacity must be a whole number of one or more.",
+        );
+      if (!Number.isInteger(nextMaxCapacity) || nextMaxCapacity < nextMinCapacity)
+        throw new MockServiceError(
+          "invalid_max_capacity",
+          "Maximum capacity must be a whole number at least as large as the minimum capacity.",
+        );
+      table.minCapacity = nextMinCapacity;
+      table.maxCapacity = nextMaxCapacity;
+    }
+    if (input.active !== undefined) table.active = input.active;
+    if (input.notes !== undefined) table.notes = input.notes?.trim() ? input.notes.trim() : null;
+    this.logActivity(null, "table_updated", `Table ${table.name} updated.`);
+    return structuredClone(table);
+  }
+
+  async deleteTable(tableId: string): Promise<void> {
+    await delay(220);
+    const table = this.findTable(tableId);
+    if (table.availabilityState === "occupied")
+      throw new MockServiceError(
+        "table_occupied",
+        `${table.name} is currently occupied and cannot be deleted.`,
+      );
+    this.state.tables = this.state.tables.filter((t) => t.id !== tableId);
+    this.logActivity(null, "table_deleted", `Table ${table.name} deleted.`);
+  }
+
+  async setTableAvailability(tableId: string, input: SetTableAvailabilityRequest): Promise<Table> {
+    await delay(200);
+    const table = this.findTable(tableId);
+    if (input.availabilityState === "available" && table.availabilityState !== "needs_tidying")
+      throw new MockServiceError(
+        "invalid_availability_transition",
+        `${table.name} can only be marked available from needs_tidying.`,
+      );
+    if (input.availabilityState === "needs_tidying" && table.availabilityState === "occupied") {
+      table.occupyingEntryId = null;
+      table.occupyingTicketCode = null;
+    }
+    table.availabilityState = input.availabilityState;
+    this.logActivity(
+      null,
+      "table_availability_changed",
+      `Table ${table.name} marked ${input.availabilityState}.`,
+    );
+    return structuredClone(table);
   }
 
   async createLargePartyEnquiry(input: LargePartyEnquiryRequest): Promise<LargePartyEnquiry> {

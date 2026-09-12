@@ -311,6 +311,11 @@ paths:
       operationId: seatEntry
       tags: [waitlist-entries]
       summary: Seat a party at a compatible, available table
+      description: >
+        The table must be active, in the `available` availability state, and
+        have a capacity range (`minCapacity`-`maxCapacity`) that fits the
+        party size. Seating an inactive, occupied, or `needs_tidying` table,
+        or one with an insufficient or mismatched capacity, is rejected.
       parameters:
         - $ref: "#/components/parameters/EntryId"
       requestBody:
@@ -434,6 +439,104 @@ paths:
                   $ref: "#/components/schemas/Table"
         "401":
           $ref: "#/components/responses/Error"
+    post:
+      operationId: createTable
+      tags: [tables]
+      summary: Create a new table
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTableRequest"
+      responses:
+        "201":
+          description: The created table
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Table"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /tables/{tableId}:
+    patch:
+      operationId: updateTable
+      tags: [tables]
+      summary: Update a table's name, capacities, active state, or notes
+      parameters:
+        - $ref: "#/components/parameters/TableId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTableRequest"
+      responses:
+        "200":
+          description: The updated table
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Table"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteTable
+      tags: [tables]
+      summary: Delete a table
+      description: An occupied table cannot be deleted.
+      parameters:
+        - $ref: "#/components/parameters/TableId"
+      responses:
+        "204":
+          description: Table deleted
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /tables/{tableId}/availability:
+    patch:
+      operationId: setTableAvailability
+      tags: [tables]
+      summary: Manually change a table's availability state
+      description: >
+        Staff can manually mark a `needs_tidying` table `available` when it is
+        ready, or mark an `available` or `occupied` table `needs_tidying` (for
+        example, if guests leave without being properly checked out). Seating
+        and completion update availability automatically; staff do not use this
+        endpoint for those normal flows. Only `available` tables can be
+        selected when seating a new party.
+      parameters:
+        - $ref: "#/components/parameters/TableId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetTableAvailabilityRequest"
+      responses:
+        "200":
+          description: The updated table
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Table"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
 
   /large-party-enquiries:
     post:
@@ -514,6 +617,12 @@ components:
       in: path
       required: true
       description: Opaque, unguessable guest access token.
+      schema:
+        type: string
+    TableId:
+      name: tableId
+      in: path
+      required: true
       schema:
         type: string
 
@@ -693,25 +802,96 @@ components:
             implementation; expected to be false once a persistent backend
             is in place.
 
+    TableAvailabilityState:
+      type: string
+      enum: [available, occupied, needs_tidying]
+      description: >
+        `available` – free and can be assigned to a party. `occupied` –
+        currently assigned to a seated party. `needs_tidying` – the party has
+        left; the table is not yet ready for new guests. Only `available`
+        tables can be selected when seating a new party.
+
     Table:
       type: object
       required:
-        [id, name, capacity, occupied, occupyingTicketCode, occupyingEntryId]
+        - id
+        - name
+        - minCapacity
+        - maxCapacity
+        - active
+        - availabilityState
+        - notes
+        - occupyingTicketCode
+        - occupyingEntryId
       properties:
         id:
           type: string
         name:
           type: string
-        capacity:
+        minCapacity:
           type: integer
-        occupied:
+          description: Minimum party size this table is suited for.
+        maxCapacity:
+          type: integer
+          description: Maximum party size this table can seat.
+        active:
           type: boolean
+          description: Inactive tables are excluded from seating.
+        availabilityState:
+          $ref: "#/components/schemas/TableAvailabilityState"
+        notes:
+          type: string
+          nullable: true
         occupyingTicketCode:
           type: string
           nullable: true
         occupyingEntryId:
           type: string
           nullable: true
+
+    CreateTableRequest:
+      type: object
+      required: [name, minCapacity, maxCapacity]
+      properties:
+        name:
+          type: string
+        minCapacity:
+          type: integer
+          minimum: 1
+        maxCapacity:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+
+    UpdateTableRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        minCapacity:
+          type: integer
+          minimum: 1
+        maxCapacity:
+          type: integer
+          minimum: 1
+        active:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+
+    SetTableAvailabilityRequest:
+      type: object
+      required: [availabilityState]
+      properties:
+        availabilityState:
+          type: string
+          enum: [available, needs_tidying]
+          description: >
+            Manual availability changes are limited to `available` and
+            `needs_tidying`; `occupied` is set automatically when a party is
+            seated.
 
     WaitlistEntry:
       type: object
