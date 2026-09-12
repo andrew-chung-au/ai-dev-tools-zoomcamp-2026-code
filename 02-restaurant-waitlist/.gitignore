@@ -1,14 +1,5 @@
 # Session summaries (transient working notes)
 _session-summaries/
 
-# Build / runtime artifacts
-.output/
-node_modules/
-*.log
-
-# Environment / IDE
-.env
-.env.local
-.vscode/
-.idea/
+# Frontend lockfile noise when using npm in a Bun-based project
 frontend/package-lock.json

@@ -3,33 +3,39 @@
 Below are my answers to the homework questions.  
 All placeholders are clearly marked so I can update them later.
 
+## Project repository
+
+- Main course repository: [ai-dev-tools-zoomcamp-2026-code](https://github.com/andrew-chung-au/ai-dev-tools-zoomcamp-2026-code)
+- Project directory: `02-restaurant-waitlist/`
+- Lovable frontend source: [table-ready](https://github.com/andrew-chung-au/table-ready)
+
 ---
 
 ## 1. Which project did you choose for this homework? *(not graded)*
 
 **Answer:**  
-- [PLACEHOLDER: Select one - Expense splitter | Restaurant waitlist manager | Mini Kanban board | Sports-league scoreboard]
+- Restaurant waitlist manager
 
 ---
 
 ## 2. What is the name you chose? *(1 point)*
 
 **Answer:**  
-- [PLACEHOLDER: Insert chosen name]
+- Table Ready
 
 ---
 
 ## 3. What is the sha1 hash for this commit? *(1 point)*
 
 **Answer:**  
-- [PLACEHOLDER: Insert sha1 hash]
+- c1c601a
 
 ---
 
 ## 4. Which command do you use to start the frontend? *(1 point)*
 
 **Answer:**  
-- [PLACEHOLDER: Insert frontend start command]
+- `bun run dev`
 
 ---
 

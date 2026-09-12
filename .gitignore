@@ -1,39 +1,46 @@
-# =========================
-# Python / Django / uv
-# =========================
+# ===============================================
+# Node / frontend
+# ===============================================
+node_modules/
+dist/
+.output/
+.tanstack/
+.vite/
+*.log
 
-# Byte-compiled / optimized / DLL files
+# ===============================================
+# Python / uv / Django
+# ===============================================
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual Environments (uv defaults to .venv)
 .venv/
 venv/
 env/
-
-# Django stuff
 db.sqlite3
 db.sqlite3-journal
 media/
 
-# Environments & Secrets
+# ===============================================
+# Environment & secrets
+# ===============================================
 .env
 .env.local
 .env.*
 
-# =========================
-# IDEs and OS Files
-# =========================
-
-# VS Code / Codespaces
+# ===============================================
+# IDEs
+# ===============================================
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+.idea/
 
-# OS generated files
+# ===============================================
+# OS files
+# ===============================================
 .DS_Store
 Thumbs.db
