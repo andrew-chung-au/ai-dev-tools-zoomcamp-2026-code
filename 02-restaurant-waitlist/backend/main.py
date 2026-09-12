@@ -1,6 +1,8 @@
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.config import ALLOWED_ORIGINS
 from backend.errors import ServiceError
 from backend.notifications import ConsoleNotificationProvider
 from backend.repository import create_seed_repository
@@ -18,6 +20,13 @@ from backend.routers import (
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Restaurant Waitlist API", version="0.1.0")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.state.repository = create_seed_repository()
     app.state.notifier = ConsoleNotificationProvider()
