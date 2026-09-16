@@ -11,5 +11,8 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    // Export a static SPA shell (dist/client/index.html + assets) so the build can be served
+    // as plain static files by the FastAPI backend, with no Node server at runtime.
+    spa: { enabled: true },
   },
 });

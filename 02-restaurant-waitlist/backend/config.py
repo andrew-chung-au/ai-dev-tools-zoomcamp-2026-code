@@ -19,3 +19,9 @@ ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+# Directory containing the built frontend (index.html + assets), served as
+# static files when present. Unset/missing in local dev and tests, where the
+# frontend runs from its own dev server instead; the Docker image sets this
+# to the frontend build copied into the backend image.
+FRONTEND_DIST_DIR = os.environ.get("FRONTEND_DIST_DIR", "frontend_dist")

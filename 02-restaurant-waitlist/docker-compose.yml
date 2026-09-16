@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: waitlist
+      POSTGRES_PASSWORD: waitlist
+      POSTGRES_DB: waitlist
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waitlist -d waitlist"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8091:8091"
+    environment:
+      DATABASE_URL: postgresql://waitlist:waitlist@postgres:5432/waitlist
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

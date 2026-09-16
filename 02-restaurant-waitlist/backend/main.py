@@ -1,8 +1,11 @@
-from fastapi import APIRouter, FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from pathlib import Path
 
-from backend.config import ALLOWED_ORIGINS, DATABASE_URL
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from backend.config import ALLOWED_ORIGINS, DATABASE_URL, FRONTEND_DIST_DIR
 from backend.db import Base, make_engine, make_session_factory
 from backend.errors import ServiceError
 from backend.notifications import ConsoleNotificationProvider
@@ -54,6 +57,19 @@ def create_app(database_url: str | None = None) -> FastAPI:
     api_router.include_router(large_party_enquiries.router)
     api_router.include_router(notifications.router)
     app.include_router(api_router)
+
+    frontend_dir = Path(FRONTEND_DIST_DIR)
+    if frontend_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=frontend_dir / "assets"), name="frontend-assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_frontend(full_path: str) -> FileResponse:
+            if full_path.startswith("api/"):
+                raise HTTPException(status_code=404)
+            candidate = frontend_dir / full_path
+            if full_path and candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(frontend_dir / "index.html")
 
     return app
 

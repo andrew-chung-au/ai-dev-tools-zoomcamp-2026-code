@@ -7,6 +7,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9.13",
 ]
 
 [dependency-groups]
@@ -24,3 +25,7 @@ packages = ["backend"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: needs Docker (docker-compose.yml stack); excluded from the default run",
+]
+addopts = "-m 'not integration'"
