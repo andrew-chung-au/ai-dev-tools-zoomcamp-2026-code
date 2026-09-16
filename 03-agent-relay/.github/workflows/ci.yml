@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE: agent-relay:local
+  KIND_CLUSTER: agent-relay
+
+jobs:
+  test:
+    name: Unit + integration tests (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agent_relay
+          POSTGRES_PASSWORD: agent_relay
+          POSTGRES_DB: agent_relay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agent_relay -d agent_relay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://agent_relay:agent_relay@localhost:5432/agent_relay
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run unit tests
+        run: uv run pytest test_agent_relay.py -v
+
+      - name: Start the app for integration tests
+        run: |
+          uv run uvicorn main:app --host 0.0.0.0 --port 8000 &
+          echo $! > server.pid
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/ready && exit 0
+            sleep 1
+          done
+          echo "server did not become ready in time" >&2
+          exit 1
+
+      - name: Run integration tests
+        run: uv run pytest test_flow.py -v -s
+
+      - name: Stop the app
+        if: always()
+        run: kill "$(cat server.pid)" 2>/dev/null || true
+
+  build:
+    name: Build container image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t "$IMAGE" .
+
+  deploy:
+    name: Deploy to kind
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    # Assumes a runner colocated with the target kind cluster (self-hosted
+    # runner, or `act` run locally) so it shares a Docker daemon with the
+    # cluster and can reuse the image `build` produced. GitHub-hosted
+    # runners do not have this property and would need to create their own
+    # ephemeral cluster instead.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubectl
+        run: |
+          command -v kubectl >/dev/null && exit 0
+          curl -Lo kubectl "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Install kind
+        run: |
+          command -v kind >/dev/null && exit 0
+          curl -Lo kind "https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64"
+          chmod +x kind
+          sudo mv kind /usr/local/bin/kind
+
+      - name: Ensure the kind cluster exists
+        run: kind get clusters | grep -qx "$KIND_CLUSTER" || kind create cluster --name "$KIND_CLUSTER"
+
+      - name: Load image into kind
+        run: kind load docker-image "$IMAGE" --name "$KIND_CLUSTER"
+
+      - name: Apply manifests
+        run: |
+          kind export kubeconfig --name "$KIND_CLUSTER"
+          kubectl apply -f k8s/
+
+      - name: Roll out the freshly loaded image
+        # `kubectl apply` only restarts pods when the manifest text itself
+        # changes. The image tag here is a fixed `:local` tag reloaded into
+        # kind by the previous step, so its *content* can change without the
+        # Deployment spec changing at all — an explicit restart is required
+        # or `IfNotPresent` pods keep running the old image indefinitely.
+        run: kubectl rollout restart deployment/agent-relay
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/postgres --timeout=120s
+          kubectl rollout status deployment/agent-relay --timeout=120s

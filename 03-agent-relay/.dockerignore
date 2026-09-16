@@ -1,0 +1,10 @@
+.venv
+.ruff_cache/
+__pycache__/
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
+*-credentials.json
+_session-summaries/
+.git

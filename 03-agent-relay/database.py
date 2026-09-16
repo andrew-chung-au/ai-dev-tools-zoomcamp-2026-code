@@ -177,19 +177,24 @@ def db_session() -> Generator[Session, None, None]:
 
 @contextmanager
 def immediate_transaction() -> Generator[Session, None, None]:
-    """Run one SQLite writer transaction before selecting or changing work.
+    """Run one writer transaction before selecting or changing work.
 
     SQLite does not support PostgreSQL's ``FOR UPDATE SKIP LOCKED``.  A
     ``BEGIN IMMEDIATE`` writer reservation serializes claims (and recovery or
     terminal submissions) across API processes, giving each task one active
-    lease.  This is the intentionally isolated seam for a future PostgreSQL
-    implementation.
+    lease. On PostgreSQL, a plain transaction is used instead; replacing it
+    with row locking (for example, ``SELECT ... FOR UPDATE SKIP LOCKED`` in
+    ``claim_one``) is the follow-up left for the student port described in
+    SPEC.md.
     """
 
     connection = engine.connect()
     session = Session(bind=connection, expire_on_commit=False, autoflush=True)
     try:
-        connection.exec_driver_sql("BEGIN IMMEDIATE")
+        if _is_sqlite(DATABASE_URL):
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+        else:
+            connection.begin()
         yield session
         session.flush()
         connection.commit()
