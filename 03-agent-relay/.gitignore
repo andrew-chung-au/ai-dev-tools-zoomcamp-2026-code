@@ -6,3 +6,7 @@
 __pycache__/
 .pytest_cache/
 *-credentials.json
+
+# Ignore contents of _session-summaries, not the folder
+_session-summaries/*
+!_session-summaries/.gitkeep
