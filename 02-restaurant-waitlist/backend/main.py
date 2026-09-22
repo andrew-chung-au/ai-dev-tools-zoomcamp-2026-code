@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import ALLOWED_ORIGINS, DATABASE_URL, FRONTEND_DIST_DIR
-from backend.db import Base, make_engine, make_session_factory
+from backend.db import make_engine, make_session_factory
 from backend.errors import ServiceError
 from backend.notifications import ConsoleNotificationProvider
 from backend.repositories import seed_if_empty
@@ -33,7 +33,6 @@ def create_app(database_url: str | None = None) -> FastAPI:
     )
 
     engine = make_engine(database_url or DATABASE_URL)
-    Base.metadata.create_all(bind=engine)
     session_factory = make_session_factory(engine)
     with session_factory() as session:
         seed_if_empty(session)

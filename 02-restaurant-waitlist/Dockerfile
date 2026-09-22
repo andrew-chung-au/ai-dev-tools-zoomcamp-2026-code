@@ -20,7 +20,7 @@ RUN npm run build \
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock alembic.ini ./
 COPY backend ./backend
 RUN uv sync --frozen --no-dev
 

@@ -1,6 +1,7 @@
 .PHONY: run run-frontend dev test test-frontend test-backend e2e
 
 run:
+	uv run alembic upgrade head
 	uv run uvicorn backend.main:app --reload --port 8091
 
 run-frontend dev:
