@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 from contextlib import asynccontextmanager
@@ -9,9 +10,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from app import telemetry
+
 
 DB_PATH = Path(os.getenv("ORDER_DB_PATH", "data/orders.db"))
 STATUSES = {"received", "preparing", "shipped", "delivered"}
+logger = logging.getLogger(telemetry.LOGGER_NAME)
 
 
 def connect():
@@ -77,6 +81,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Order Tracker", lifespan=lifespan)
+telemetry.setup(app)
 
 
 @app.get("/")
@@ -100,9 +105,11 @@ def list_orders():
 
 @app.get("/api/orders/{order_id}")
 def get_order(order_id: str):
+    logger.info("order lookup", extra={"order.id": order_id})
     with connect() as db:
         row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     if row is None:
+        logger.info("order not found", extra={"order.id": order_id})
         raise HTTPException(404, "Order not found")
     return order_detail(row)
 
