@@ -52,7 +52,7 @@ The homework's test commands depend on these. They must not change.
 - Add an **OpenTelemetry Collector, Prometheus, Loki, Tempo and Grafana**. Their config files live in `observability/`. The services join the main `compose.yaml` (for example with Compose `include:`), so the rebuild command starts everything.
 - The app sends metrics, logs and traces over OTLP to the Collector. The Collector routes metrics → Prometheus, logs → Loki, traces → Tempo. Console export from Q2 may stay or become optional.
 - Grafana is provisioned from files in the repo: data sources (with log ↔ trace links) plus a dashboard for **request counts and errors** by route and status, filterable by environment and version.
-- All configuration is committed. Nothing is set up by hand in the UI. All ports are bound to `127.0.0.1`.
+- All configuration is committed. Nothing is set up by hand in the UI. All ports are bound to `127.0.0.1` (the host-run responder is the one exception; see Q5).
 - Check: after a rebuild and a lookup of `standard-1002`, Grafana shows the request metric, and the matching log and trace can be found.
 
 ### Q4: 5xx alert
@@ -64,6 +64,8 @@ The homework's test commands depend on these. They must not change.
 
 ### Q5: Automatic responder (on-call engineer)
 - New service in `incident-response/`. It runs as a host process, listening on **port 8001** and handling **`POST /alerts`**.
+- The bind address comes from `RESPONDER_HOST`, default `127.0.0.1`. Grafana's container can't reach the host's loopback, so Q6 runs the responder on a non-loopback address. This is the only exception to binding to `127.0.0.1`.
+- On a non-loopback address the responder requires a shared token (`RESPONDER_TOKEN`): it refuses to start without one, and rejects requests whose `Authorization` header doesn't carry it. On the default `127.0.0.1` no token is needed.
 - On each firing alert, save an incident record with what's needed to understand the problem: alert name, status, labels/annotations, affected endpoint, dashboard URL, and the related logs (Loki) and traces (Tempo) for the alert window.
 - Then start the coding assistant **in headless mode** (`claude -p`) in this folder, with the incident record and an on-call prompt along these lines:
   > You are the on-call engineer for this repository. An alert just fired. Investigate the root cause. Read the code and reproduce the failure. If you find a real bug, make the smallest correction, run the tests, restart the app, verify the failing request now succeeds, and commit the fix with a clear message. If the alert is a test or a false positive, explain why and do not change the code.
@@ -72,7 +74,7 @@ The homework's test commands depend on these. They must not change.
 - Check: send the ResponderTest payload, wait for the agent to finish, and read its response (including the last line). The agent should report that there's nothing to fix and change nothing.
 
 ### Q6: End-to-end incident
-- Connect the Q4 alert to the responder with a provisioned Grafana **webhook contact point** → `http://host.docker.internal:8001/alerts`.
+- Connect the Q4 alert to the responder with a provisioned Grafana **webhook contact point** → `http://host.docker.internal:8001/alerts`, sending the responder's shared token in the `Authorization` header.
 - Check: request `GET /api/orders/express-1002` (repeat if needed) → the alert fires → Grafana sends the webhook → the responder starts the agent → the agent finds and fixes the root cause, restarts the app and verifies that the same request no longer fails.
 - The fix follows normal project rules: a regression test, `make verify` passes, commit to `main`, no push.
 
@@ -91,7 +93,7 @@ The homework's test commands depend on these. They must not change.
 - Escalating to a human on-call engineer.
 - Scaling, replacing SQLite, or running several app replicas.
 - Alert routing other than the webhook to the responder (email, Slack, PagerDuty, SNS, etc.).
-- Authentication/TLS for Grafana, the Collector or the responder (local-only stack).
+- Authentication/TLS for Grafana, the Collector or the responder (local-only stack), apart from the responder's shared token (Q5).
 - Production hardening: retention, HA, persistent Grafana state beyond provisioning, running the agent in isolated container jobs.
 - The responder pushing code or opening PRs.
 - Changes to the web page (`static/index.html`) or the order API's behavior, apart from the Q6 fix.
