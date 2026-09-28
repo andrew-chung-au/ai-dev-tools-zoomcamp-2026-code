@@ -1,7 +1,3 @@
-# Ignore contents of _session-summaries, not the folder
-_session-summaries/*
-!_session-summaries/.gitkeep
-
 # Frontend lockfile noise when using npm in a Bun-based project
 frontend/package-lock.json
 
