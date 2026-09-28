@@ -8,6 +8,8 @@ services:
       - "127.0.0.1:${ORDER_TRACKER_PORT:-8000}:8000"
     environment:
       ORDER_DB_PATH: /data/orders.db
+      DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-local}
+      SERVICE_VERSION: ${SERVICE_VERSION:-${ORDER_TRACKER_TAG:-local}}
     volumes:
       - orders:/data
     restart: unless-stopped
