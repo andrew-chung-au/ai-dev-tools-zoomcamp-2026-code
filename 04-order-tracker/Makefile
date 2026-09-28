@@ -22,3 +22,9 @@ test-one: ## Run one test file: make test-one FILE=path
 
 run: ## Start the app with Docker Compose
 	docker compose up --build -d --wait
+
+stop: ## Stop the app (keeps order data; add -v by hand to delete it)
+	docker compose down
+
+logs: ## Follow the app's logs (Ctrl-C to stop)
+	docker compose logs -f app

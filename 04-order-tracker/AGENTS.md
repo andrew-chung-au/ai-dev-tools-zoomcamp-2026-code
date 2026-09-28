@@ -11,7 +11,9 @@ This project is one folder of a larger repository. Work only inside this folder,
 <!-- Every slot is a make target or "none". -->
 
 - **Install:** `make install`
-- **Run:** `make run`
+- **Run:** `make run` (builds and starts the Compose stack, waits until it's healthy; `ORDER_TRACKER_PORT` changes the port)
+- **Stop:** `make stop` (keeps the `orders` volume)
+- **Logs:** `make logs` (follows the `app` service)
 - **Test (all):** `make test`
 - **Test (one file):** `make test-one FILE=tests/test_api.py`
 - **Verify:** `make verify`: tests, whitespace and weakened-test checks. How to use it: `_docs/agent-kit/procedures/verify.md`.
@@ -22,6 +24,7 @@ This project is one folder of a larger repository. Work only inside this folder,
 ## Project settings
 
 - **Branching:** commit directly to `main` (observed from current repo state — confirm or correct)
+- **Commits:** commit after each meaningful change, so any step can be rolled back.
 - **Dependencies:** `uv add <package>` for runtime deps, `uv add --dev <package>` for dev deps.
 - **Session summaries:** `_session-summaries/`, named `issue-<NNN>-<short-name>.md` (issue work) or `planning-<YYYY-MM-DD>-<short-name>.md` (planning/backlog review) — the kit's default scheme, since none exists yet.
 
