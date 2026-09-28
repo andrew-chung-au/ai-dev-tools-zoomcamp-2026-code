@@ -3,7 +3,7 @@
 <!-- PROJECT: specific to this folder. Protected: changes need human approval. -->
 
 Order Tracker: a small FastAPI + SQLite order-tracking service for an observability/incident-response exercise.
-Layout: `app/main.py` (FastAPI app + SQLite access), `static/index.html` (web page), `tests/test_api.py` (pytest), `Dockerfile` + `compose.yaml` (run), `pyproject.toml`/`uv.lock` (uv-managed deps).
+Layout: `app/main.py` (FastAPI app + SQLite access), `app/telemetry.py` (OpenTelemetry setup, console export), `static/index.html` (web page), `tests/` (pytest; `conftest.py` installs in-memory telemetry providers), `Dockerfile` + `compose.yaml` (run), `pyproject.toml`/`uv.lock` (uv-managed deps).
 This project is one folder of a larger repository. Work only inside this folder, and run commands from here.
 
 ## Commands
@@ -32,6 +32,7 @@ This project is one folder of a larger repository. Work only inside this folder,
 
 - Run one app container at a time: SQLite has no concurrent-writer story, and the course exercise is about detecting/handling an incident, not scaling the database.
 - `ORDER_DB_PATH` controls the DB file location (default `data/orders.db`); tests instead monkeypatch `main.DB_PATH` directly, so the env var doesn't affect them.
+- Telemetry: `DEPLOYMENT_ENVIRONMENT` / `SERVICE_VERSION` (set in `compose.yaml`) feed the resource attributes. Tests get in-memory OpenTelemetry providers from `tests/conftest.py`, which must be set before `app.main` is imported; `telemetry.setup()` reuses them instead of the console exporters.
 
 <!-- SHARED: from _docs/agent-kit/templates/AGENTS.md.template. Change it there first, then copy it here. -->
 
