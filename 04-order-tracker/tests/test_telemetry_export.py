@@ -1,4 +1,4 @@
-"""Where telemetry goes: console (on by default) and OTLP to the Collector (when an endpoint is set)."""
+"""Where telemetry goes: console (only when OTEL_CONSOLE_EXPORT=true) and OTLP to the Collector (when an endpoint is set)."""
 
 import threading
 import time
@@ -28,22 +28,25 @@ def kinds(exporters):
     return [type(exporter) for exporter in exporters]
 
 
-def test_console_only_by_default():
-    assert telemetry.console_export_enabled()
+def test_nothing_is_exported_by_default():
+    assert not telemetry.console_export_enabled()
     assert not telemetry.otlp_export_enabled()
+    assert telemetry.span_exporters() == []
+    assert telemetry.log_exporters() == []
+    assert telemetry.metric_exporters() == []
+
+
+@pytest.mark.parametrize("value", ["true", "TRUE", " true "])
+def test_console_export_is_on_when_true(monkeypatch, value):
+    monkeypatch.setenv("OTEL_CONSOLE_EXPORT", value)
+    assert telemetry.console_export_enabled()
     assert kinds(telemetry.span_exporters()) == [ConsoleSpanExporter]
     assert kinds(telemetry.log_exporters()) == [ConsoleLogRecordExporter]
     assert kinds(telemetry.metric_exporters()) == [ConsoleMetricExporter]
 
 
-@pytest.mark.parametrize("value", ["true", "TRUE", "1", ""])
-def test_console_export_stays_on_unless_false(monkeypatch, value):
-    monkeypatch.setenv("OTEL_CONSOLE_EXPORT", value)
-    assert telemetry.console_export_enabled()
-
-
-@pytest.mark.parametrize("value", ["false", "False", " false "])
-def test_console_export_can_be_turned_off(monkeypatch, value):
+@pytest.mark.parametrize("value", ["false", "False", "", "1", "yes", "on"])
+def test_console_export_is_off_unless_true(monkeypatch, value):
     monkeypatch.setenv("OTEL_CONSOLE_EXPORT", value)
     assert not telemetry.console_export_enabled()
     assert telemetry.span_exporters() == []
@@ -54,12 +57,21 @@ def test_console_export_can_be_turned_off(monkeypatch, value):
 def test_otlp_exports_all_three_signals_to_the_endpoint(monkeypatch):
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318")
 
-    assert kinds(telemetry.span_exporters()) == [ConsoleSpanExporter, OTLPSpanExporter]
-    assert kinds(telemetry.log_exporters()) == [ConsoleLogRecordExporter, OTLPLogExporter]
-    assert kinds(telemetry.metric_exporters()) == [ConsoleMetricExporter, OTLPMetricExporter]
+    assert kinds(telemetry.span_exporters()) == [OTLPSpanExporter]
+    assert kinds(telemetry.log_exporters()) == [OTLPLogExporter]
+    assert kinds(telemetry.metric_exporters()) == [OTLPMetricExporter]
     assert telemetry.span_exporters()[-1]._endpoint == "http://otel-collector:4318/v1/traces"
     assert telemetry.log_exporters()[-1]._endpoint == "http://otel-collector:4318/v1/logs"
     assert telemetry.metric_exporters()[-1]._endpoint == "http://otel-collector:4318/v1/metrics"
+
+
+def test_otlp_runs_alongside_console_export(monkeypatch):
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318")
+    monkeypatch.setenv("OTEL_CONSOLE_EXPORT", "true")
+
+    assert kinds(telemetry.span_exporters()) == [ConsoleSpanExporter, OTLPSpanExporter]
+    assert kinds(telemetry.log_exporters()) == [ConsoleLogRecordExporter, OTLPLogExporter]
+    assert kinds(telemetry.metric_exporters()) == [ConsoleMetricExporter, OTLPMetricExporter]
 
 
 def test_otlp_runs_with_console_off(monkeypatch):

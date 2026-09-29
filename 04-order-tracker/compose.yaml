@@ -17,8 +17,9 @@ services:
       # All three signals go over OTLP/HTTP to the Collector. Export runs in the
       # background: if the Collector is down, requests are unaffected.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      # Console export (for `make logs`) stays on unless set to false.
-      OTEL_CONSOLE_EXPORT: ${OTEL_CONSOLE_EXPORT:-true}
+      # Console export (telemetry in `make logs`) is off unless the shell sets
+      # OTEL_CONSOLE_EXPORT=true; left empty here, it's passed through or unset.
+      OTEL_CONSOLE_EXPORT:
     volumes:
       - orders:/data
     restart: unless-stopped

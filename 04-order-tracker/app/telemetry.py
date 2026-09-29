@@ -1,6 +1,6 @@
 """OpenTelemetry for the Order Tracker: metrics, traces and logs.
 
-Signals go to the console (on unless OTEL_CONSOLE_EXPORT=false) and, when
+Signals go to the console (only when OTEL_CONSOLE_EXPORT=true) and, when
 OTEL_EXPORTER_OTLP_ENDPOINT is set, over OTLP/HTTP to the Collector. Every
 exporter runs on a background thread (batch span/log processors, periodic
 metric reader), so a slow or missing Collector never blocks a request.
@@ -64,12 +64,11 @@ CUMULATIVE = {
     kind: AggregationTemporality.CUMULATIVE
     for kind in (Counter, UpDownCounter, Histogram, ObservableCounter, ObservableUpDownCounter, ObservableGauge)
 }
-_FALSE_VALUES = {"false", "0", "no", "off"}
 
 
 def console_export_enabled() -> bool:
-    """Console export is on unless OTEL_CONSOLE_EXPORT is false (unset or true keeps it on)."""
-    return os.getenv("OTEL_CONSOLE_EXPORT", "true").strip().lower() not in _FALSE_VALUES
+    """Console export is off unless OTEL_CONSOLE_EXPORT is true (unset or any other value keeps it off)."""
+    return os.getenv("OTEL_CONSOLE_EXPORT", "").strip().lower() == "true"
 
 
 def otlp_export_enabled() -> bool:
