@@ -1,0 +1,13 @@
+# Loads the dashboards committed in observability/grafana/dashboards.
+apiVersion: 1
+
+providers:
+  - name: order-tracker
+    folder: Order Tracker
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana-dashboards
+      foldersFromFilesStructure: false

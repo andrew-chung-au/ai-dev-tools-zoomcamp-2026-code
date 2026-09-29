@@ -1,0 +1,24 @@
+# Prometheus receives the app's metrics from the Collector over OTLP
+# (--web.enable-otlp-receiver); it scrapes nothing but itself.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+otlp:
+  # Resource attributes that become labels on every metric, so the dashboard
+  # (and #9's alert) can split by service, environment and version:
+  # service_name, deployment_environment, service_version.
+  promote_resource_attributes:
+    - service.name
+    - deployment.environment
+    - service.version
+  translation_strategy: UnderscoreEscapingWithSuffixes
+
+storage:
+  tsdb:
+    out_of_order_time_window: 10m
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

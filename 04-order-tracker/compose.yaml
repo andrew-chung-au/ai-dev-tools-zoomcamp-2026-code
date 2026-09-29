@@ -1,5 +1,9 @@
 name: order-tracker
 
+# Collector, Prometheus, Loki, Tempo and Grafana (config in observability/).
+include:
+  - observability/compose.yaml
+
 services:
   app:
     image: order-tracker:${ORDER_TRACKER_TAG:-local}
@@ -10,6 +14,11 @@ services:
       ORDER_DB_PATH: /data/orders.db
       DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-local}
       SERVICE_VERSION: ${SERVICE_VERSION:-${ORDER_TRACKER_TAG:-local}}
+      # All three signals go over OTLP/HTTP to the Collector. Export runs in the
+      # background: if the Collector is down, requests are unaffected.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      # Console export (for `make logs`) stays on unless set to false.
+      OTEL_CONSOLE_EXPORT: ${OTEL_CONSOLE_EXPORT:-true}
     volumes:
       - orders:/data
     restart: unless-stopped
