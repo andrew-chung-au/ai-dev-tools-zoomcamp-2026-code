@@ -48,7 +48,7 @@ Show the human, in one message:
 1. The classification table from step 3.
 2. The blueprint table from step 4.
 3. Diffs for every file to be created or changed: `AGENTS.md`, `agent-kit.conf`, Makefile additions, `.gitignore` additions, pointer files, archive moves.
-4. Anything you guessed or couldn't determine.
+4. Anything you guessed or couldn't determine, each as a question for the human. Their answers replace the guesses; never commit a guess marked "confirm" or "observed".
 
 Wait for approval. Apply only what the human approves.
 
@@ -71,3 +71,4 @@ Done when:
 - Every command slot in `AGENTS.md` is a make target or "none".
 - `git config core.hooksPath` is `.githooks`.
 - The baseline `make verify` result is reported, with issues proposed for any failures.
+- No placeholders (`<...>`) or unconfirmed notes remain in `AGENTS.md`.

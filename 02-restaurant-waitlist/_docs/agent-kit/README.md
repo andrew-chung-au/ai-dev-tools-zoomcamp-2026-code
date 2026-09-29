@@ -1,6 +1,6 @@
 # Agent kit
 
-**Version 1.3 (2026-09-29).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
+**Version 1.5 (2026-09-30).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
 
 The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. It holds three kinds of material:
 
@@ -70,6 +70,17 @@ Agents trigger most approval prompts in two ways: working outside the project fo
 The kit's files are protected in every project, so changes need your approval. Improve the kit in the project you're working on, then copy the folder to other projects you're still actively working on; finished homework can keep the version it was built with. Bump the version at the top of this file when you change it.
 
 The git hooks carry their own version number. `make hooks` upgrades an older installed version and leaves an equal or newer one alone, so projects with different kit versions can share one repository.
+
+### Upgrading a project that already uses the kit
+
+Agents take their rules from the project's `AGENTS.md`, not from the kit folder, so replacing the kit files isn't enough on its own.
+
+1. Pause at a clean point: finish the current step, commit, and exit the agent session. `git status --short` should show nothing.
+2. From the project folder, unzip the new kit over the old one: `unzip -o <path>/agent-kit.zip`.
+3. Run `make hooks`. It upgrades older hooks and leaves current ones alone.
+4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared Conventions block in `AGENTS.md` to match the template, leaving the project half unchanged, and apply any blueprint changes. Show me the diffs and wait for my approval."
+5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Include `.githooks/` at the repo root if `make hooks` changed it.
+6. Start a fresh agent session, so the new rules load.
 
 ## Optional: tool-native enforcement
 

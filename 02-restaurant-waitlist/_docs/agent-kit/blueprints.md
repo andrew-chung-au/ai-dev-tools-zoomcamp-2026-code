@@ -40,7 +40,16 @@ What a project using this kit should have, when each piece applies, and how to c
 
 **Git hooks.** Hooks are repository-wide, so they live at the repo root even when the project is a subfolder. They only act on folders containing `agent-kit.conf`, so other folders are unaffected. Once installed, git ignores `.git/hooks`, so `install-hooks.sh` checks what's there first. Standard Git LFS hooks are replaced automatically: the kit installs LFS pass-throughs, and its `pre-push` uploads LFS objects after verify passes. Any other existing hook stops the install until the human merges it or approves `FORCE=1`. The `.githooks/` folder is committed once, and each clone or new codespace runs `make hooks` once.
 
-**Ignore rules.** Make sure the project's `.gitignore` covers `.env` and `.env.*` (but not `.env.example`), local databases, the agents' `.scratch/` folder, and build, cache and dependency folders for the stack. The pre-commit hook catches these too, but ignore rules keep them out of `git status`.
+**Ignore rules.** Make sure the project's `.gitignore` contains these lines, in this order, so `.env.example` stays tracked:
+
+```
+.env
+.env.*
+!.env.example
+.scratch/
+```
+
+Add local databases, and build, cache and dependency folders for the stack. Check the result with `git check-ignore -v .env.example`, which should print nothing. The pre-commit hook catches these files too, but ignore rules keep them out of `git status`.
 
 **Session summaries.** If the project already has summaries with a naming scheme, keep that scheme and record it in the **Session summaries** setting in `AGENTS.md`.
 
@@ -50,11 +59,13 @@ What a project using this kit should have, when each piece applies, and how to c
 
 Many AI coding tools read `AGENTS.md` directly. For a tool that reads its own file instead, add a short pointer file so every tool gets the same instructions. Check the tool's documentation for its file name and import syntax. For example:
 
-- **Claude Code** reads `CLAUDE.md`, which can import other files: one line, `@AGENTS.md`.
+- **Claude Code** reads `CLAUDE.md`, which can import other files. Use two lines: `@AGENTS.md`, then "Use .scratch/ in this folder for temporary files, not the session scratchpad in /tmp." The second line overrides Claude Code's default scratchpad, which is outside the project folder and triggers approval prompts.
 - **Other tools:** a pointer file that says "Follow the instructions in AGENTS.md", if the tool can't import files.
 
 Create pointer files only for tools the human actually uses.
 
 ## Tool permissions
 
-Tools that ask before running commands can usually pre-approve safe ones. Allowing the project's `make` targets and read-only git commands (`git status`, `git diff`, `git log`) removes most routine prompts, while pushes and edits to protected files still ask. Only propose this for a tool the human uses, and show the settings change for approval. For example, in Claude Code, project settings live in `.claude/settings.json` under `permissions.allow`.
+Tools that ask before running commands can usually pre-approve safe ones. Allowing the project's `make` targets, read-only git commands (`git status`, `git diff`, `git log`) and scripts in `.scratch/` (`python3 .scratch/…`, `bash .scratch/…`) removes most routine prompts, while pushes and edits to protected files still ask. Only propose this for a tool the human uses, and show the settings change for approval. For example, in Claude Code, project settings live in `.claude/settings.json` under `permissions.allow`.
+
+In a monorepo, tools that restrict reads to the project folder will ask each time a kit review reads the repo-root `.githooks/`. Add that one folder to the tool's allowed directories, not the whole repo root. In Claude Code, that's `/add-dir <repo root>/.githooks` for one session, or `permissions.additionalDirectories` in `.claude/settings.local.json` to keep it.

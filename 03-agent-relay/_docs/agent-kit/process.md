@@ -38,7 +38,7 @@ Each role follows its file in `_docs/agent-kit/team/`:
 
 How to run a role depends on the tool:
 
-- **If your tool can launch subagents,** the orchestrator launches each role as a subagent, tells it to read its role file, and gives it the issue number.
+- **If your tool can launch subagents,** the orchestrator launches each role as a subagent, tells it to read `AGENTS.md` and then its role file, and gives it the issue number. Subagents don't always receive the project's instructions automatically, so always say this explicitly.
 - **Otherwise,** run each role in a fresh session: "You are the QA engineer. Read `_docs/agent-kit/team/qa-engineer.md` and check issue #N." A fresh session is the point: the reviewer shouldn't share the context of the author.
 
 ## Orchestrator
