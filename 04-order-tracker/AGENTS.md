@@ -11,9 +11,9 @@ This project is one folder of a larger repository. Work only inside this folder,
 <!-- Every slot is a make target or "none". -->
 
 - **Install:** `make install`
-- **Run:** `make run` (builds and starts the Compose stack, waits until it's healthy; `ORDER_TRACKER_PORT` changes the port)
-- **Stop:** `make stop` (keeps the `orders` volume)
-- **Logs:** `make logs` (follows the `app` service)
+- **Run:** `make run`: builds and starts the app plus the observability stack in `observability/`, and waits until healthy. Ports (all on 127.0.0.1, overridable by env vars) and the Grafana login are in the README.
+- **Stop:** `make stop`: stops the stack and keeps all data volumes.
+- **Logs:** `make logs` (follows the `app` service); `make logs-all` (follows every service)
 - **Test (all):** `make test`
 - **Test (one file):** `make test-one FILE=tests/test_api.py`
 - **Verify:** `make verify`: tests, whitespace and weakened-test checks. How to use it: `_docs/agent-kit/procedures/verify.md`.
@@ -32,7 +32,7 @@ This project is one folder of a larger repository. Work only inside this folder,
 
 - Run one app container at a time: SQLite has no concurrent-writer story, and the course exercise is about detecting/handling an incident, not scaling the database.
 - `ORDER_DB_PATH` controls the DB file location (default `data/orders.db`); tests instead monkeypatch `main.DB_PATH` directly, so the env var doesn't affect them.
-- Telemetry: `DEPLOYMENT_ENVIRONMENT` / `SERVICE_VERSION` (set in `compose.yaml`) feed the resource attributes. Tests get in-memory OpenTelemetry providers from `tests/conftest.py`, which must be set before `app.main` is imported; `telemetry.setup()` reuses them instead of the console exporters.
+- Telemetry: `DEPLOYMENT_ENVIRONMENT` / `SERVICE_VERSION` (set in `compose.yaml`) feed the resource attributes. The app exports over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (Compose sets it to the Collector); console export is off unless `OTEL_CONSOLE_EXPORT=true`. Tests get in-memory OpenTelemetry providers from `tests/conftest.py`, which must be set before `app.main` is imported; `telemetry.setup()` reuses them instead of building exporters.
 
 <!-- SHARED: from _docs/agent-kit/templates/AGENTS.md.template. Change it there first, then copy it here. -->
 
