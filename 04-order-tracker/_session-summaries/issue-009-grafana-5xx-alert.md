@@ -5,7 +5,7 @@
 
 ## What changed and why
 
-Worked #9 following `_docs/agent-kit/process.md`, with PM, Engineer and QA run as subagents. The spec had no commits since `5161b1d`, so no backlog review was needed. **The issue is not done:** QA stopped partway without a verdict, so #9 stays open.
+Worked #9 following `_docs/agent-kit/process.md`, with PM, Engineer and QA run as subagents. The spec had no commits since `5161b1d`, so no backlog review was needed. The first QA run stopped partway; the same QA agent was resumed and passed all 20 criteria, and #9 was closed.
 
 - **PM:** named the real #8 metric and labels (`http_server_request_duration_seconds_count`; `http_route`, `http_response_status_code`, `service_name`, `deployment_environment`, `service_version`) and dropped `instance`, which changes on every restart. Also pinned the rule's location (`observability/grafana/provisioning/alerting/`, the existing `Order Tracker` folder), a fixed rule UID and data source UID `prometheus`. Added edge cases: restart without duplicates, re-provisioning after the `grafana-data` volume is removed, and Prometheus recovery. Reworded the `DatasourceError` criterion so it can be checked without #11.
 - **Human decisions:**
@@ -29,15 +29,24 @@ Worked #9 following `_docs/agent-kit/process.md`, with PM, Engineer and QA run a
   - 3× `express-1002` went Pending at 14:55:30 and Firing at 14:56:30 UTC.
 
   The auto-mode safety classifier then failed on 9 calls in a row, so QA stopped before capturing the firing alert's labels and posted no verdict. Afterwards, Assert clean passed and HEAD was unchanged (`41cbfbb`).
+- **QA (resumed): PASS** on all 20 criteria at `41cbfbb`: https://github.com/andrew-chung-au/ai-dev-tools-zoomcamp-2026-code/issues/9#issuecomment-5893861034. Highlights:
+  - an app restart plus a new 500 gave one alert instance with no `instance` label, and a restart alone stayed Normal;
+  - stopping Prometheus put the rule in Error and raised a `DatasourceError` carrying `owner`, which cleared after Prometheus restarted;
+  - the rule was re-provisioned after the `grafana-data` volume was removed, and the dashboard URL followed `GRAFANA_PORT=13000`;
+  - `(unmatched)` was judged on indirect evidence: a real unmatched 404 series run through the rule's expression with only the status filter changed.
+
+  Afterwards, Assert clean passed, HEAD was unchanged (`1f1445a`, docs only on top of `41cbfbb`), `DOCKER-USER` held only `RETURN` and the stack was stopped.
+- **Firewall on resume:** `make stop` recreates the Compose network, so the bridge name changes on every stop and start (`br-<network id>`); the subnet stays `10.215.24.0/24`. QA stopped when the bridge no longer matched the approved rule. The human then approved the same rule on whatever bridge the project network gets, removed before each `make stop` and at the end.
 - **Incident, firewall rule left in place:** QA added the approved `iptables-legacy` `DOCKER-USER` ACCEPT rule (`br-5ff826b3a353`, `10.215.24.0/24`) at about 14:46 UTC. Classifier errors blocked its removal, and my own read-only checks failed the same way. Once the classifier recovered, the orchestrator removed the rule at about 15:08 UTC, which was within the human's "remove it afterwards" approval. `DOCKER-USER` now holds only `RETURN`, and `make stop` was run (volumes kept).
 
 ## Files created or modified
 
 - `observability/grafana/provisioning/alerting/order-tracker-alerts.json` (new)
 - `tests/test_alerting.py` (new, 14 tests)
-- GitHub: #9 body edited by the PM (grooming and the human's decisions), PM and Engineer comments. No QA comment.
+- `AGENTS.md` (human-approved gotcha, see below)
+- GitHub: #9 body edited by the PM (grooming and the human's decisions), PM, Engineer and QA comments; #9 closed.
 
-Commits: `41cbfbb` (issue work).
+Commits: `41cbfbb` (issue work), `1f1445a` (first version of this summary), `0f81495` (AGENTS.md).
 
 ## Mismatches with the spec or design docs
 
@@ -53,7 +62,7 @@ Commits: `41cbfbb` (issue work).
 
 ## Proposed AGENTS.md changes
 
-Proposed by the Engineer; not yet shown to the human for approval (the process does that after QA passes):
+Proposed by the Engineer; approved by the human after QA passed and applied in `0f81495` under Project gotchas:
 
 ```diff
 +- Grafana alerting provisioning (`observability/grafana/provisioning/alerting/`) doesn't expand env vars, unlike the data source file: write template variables as `$labels` (not `$$labels`), and use `{{ externalURL }}` (Grafana's root URL, from `GF_SERVER_ROOT_URL`) for links back to Grafana. Grafana re-applies provisioned rules on every start, so their `version`/`updated` go up even when nothing changed.
@@ -66,30 +75,19 @@ Proposed by the Engineer; not yet shown to the human for approval (the process d
 
 ## Follow-ups for the next session
 
-- Run a **fresh QA pass** of #9 at `41cbfbb` covering every criterion. Ask the human to approve the temporary firewall rule again first (the approval was for the QA run that just ended). Still unchecked:
-  - the firing alert's labels and annotations, including the rendered `dashboard_url`;
-  - return to Normal after 5 minutes;
-  - Prometheus stop/start giving Error, a `DatasourceError` carrying `owner`, and recovery;
-  - restart persistence and re-provisioning after the `grafana-data` volume is removed;
-  - `GRAFANA_PORT=13000`;
-  - counter resets when the app restarts;
-  - the `(unmatched)` endpoint;
-  - the issue-comment criterion.
-- The `(unmatched)` criterion can't be triggered live without an API change. The Engineer checked it only with a `label_replace` on `vector(1)`. QA should say whether that is enough.
-- On PASS: show the human the AGENTS.md diff above, then close #9.
+- Next issue: #10, which uses the rule UID `order-tracker-5xx`, its labels (`endpoint`, `http_route`, `owner`, `window`, service/env/version) and annotations (`summary`, `description`, `dashboard_url`).
+- Any future firewall approval for live checks in this codespace should name the subnet and the project network, not a bridge name, since the bridge changes on every `make stop` + `make run`.
 - Propose the #11 criterion for how the responder treats `DatasourceError` (record it without starting the agent, or report "infrastructure, no code fix"), and check whether spec Q5 needs a change.
 - `.scratch/` holds files from #8 and #9 (issue bodies, QA helper `state.sh`); all of them can be deleted.
 
 ## Suggested commit message
 
 ```
-Add session summary for issue #009 (in progress)
+Complete session summary for issue #009
 
-Record the Q4 alert work so far: PM grooming, the human's decisions
-(DatasourceError routing, externalURL dashboard link, endpoint label with
-(unmatched) fallback), the rule in 41cbfbb, the partial QA run stopped by
-classifier errors, and the firewall rule removed afterwards. #9 stays open
-pending a fresh QA pass.
+Record the resumed QA run (PASS on all 20 criteria at 41cbfbb), the
+firewall approval widened to any project bridge, the AGENTS.md gotcha
+applied in 0f81495, and the issue's closure.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ```
