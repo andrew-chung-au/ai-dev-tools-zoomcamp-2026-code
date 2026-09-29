@@ -1,6 +1,6 @@
 # Agent kit
 
-**Version 1.0 (2026-09-29).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
+**Version 1.3 (2026-09-29).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
 
 The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. It holds three kinds of material:
 
@@ -23,6 +23,7 @@ No tool-agnostic equivalent of an AI tool's own hooks or permission system exist
 - Any agent can skip git hooks with `--no-verify`, or set `HUMAN_APPROVED=1` itself. The instructions forbid both, which makes a breach a visible rule violation rather than an accident.
 - The QA check (`make assert-clean`) detects changes after the fact; it doesn't prevent them.
 - Hooks don't run for commits made on the GitHub website.
+- All roles usually share one GitHub login, so GitHub can't stop one role editing another's comments or closing an issue. The rules forbid it, and GitHub's edit history shows if it happened.
 
 ## What's in the kit
 
@@ -36,7 +37,7 @@ _docs/agent-kit/
   procedures/        verify.md, session-summary.md
   templates/         AGENTS.md, agent-kit.conf, Makefile, task, session-summary and CI templates
   scripts/           verify.sh, check-staged.sh, assert-clean.sh, install-hooks.sh, lib.sh
-  githooks/          pre-commit and pre-push, installed at the repo root
+  githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root
 ```
 
 ## Adding the kit to a project folder
@@ -51,12 +52,18 @@ You need `git`, `make` and `bash`: WSL, macOS, Linux or Codespaces.
 
 In a monorepo, the hooks go at the repository root and only act on folders that contain `agent-kit.conf`, so projects without the kit are unaffected.
 
+If the repo already has hooks, `make hooks` checks them first. Standard Git LFS hooks are replaced automatically, because the kit's hooks call Git LFS themselves. Any other hook stops the install, so you can merge it by hand.
+
 ## Day to day
 
 - **Work:** "Work the next issue following `_docs/agent-kit/process.md`."
 - **Approving a protected change:** once you've read the diff, tell the agent "approved, commit it with `HUMAN_APPROVED=1`", or commit it yourself.
 - **Pushing:** read `git diff origin/main --stat -- .` and the diff, then push. If the pre-push hook blocks you, its output says why.
 - **Checking the setup later:** "Review this project using `_docs/agent-kit/setup.md`." Review mode reports blueprints that now apply, such as a new linter, and any drift.
+
+## Fewer approval prompts
+
+Agents trigger most approval prompts in two ways: working outside the project folder (scratch files in `/tmp`), and shell commands too complex for the tool to check. The shared conventions tell agents to use a `.scratch/` folder in the project, prefer built-in file tools and `make` targets, and write simple commands, retrying once in simpler form before asking. When you do decline a prompt, say why in your reply. The agent is told never to pursue a declined goal another way, so a reason like "use a literal path" tells it what to fix. To pre-approve routine commands in your tool, see Tool permissions in `blueprints.md`.
 
 ## Updating the kit
 

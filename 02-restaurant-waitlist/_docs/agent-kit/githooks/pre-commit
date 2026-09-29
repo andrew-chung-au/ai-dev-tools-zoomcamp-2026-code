@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agent-kit-hooks-version: 1
+# agent-kit-hooks-version: 2
 # Repo-wide pre-commit dispatcher, installed at <repo root>/.githooks by `make hooks`.
 # For each folder touched by this commit that has adopted the agent kit (contains
 # agent-kit.conf), runs that folder's own checks. Other folders are left alone.

@@ -26,6 +26,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md` |
 | CI backstop | The human asks for it | `.github/workflows/` at the repo root | `templates/ci-verify.yml.template` |
 | Tool-native enforcement | The human wants hard enforcement in one specific tool | That tool's own config folder | Not in the kit; see README |
+| Tool permission allow-list | The human's tool asks for approval on routine commands | That tool's own settings file | See Tool permissions below |
 
 ## Notes on specific blueprints
 
@@ -37,9 +38,9 @@ What a project using this kit should have, when each piece applies, and how to c
 
 **Lint and type-check gates.** Order matters: add the targets, fix or suppress the existing errors (as an issue, through the normal process), and only then set `LINT_CMD`/`TYPECHECK_CMD`. Setting them earlier would block every push on errors nobody introduced.
 
-**Git hooks.** Hooks are repository-wide, so they live at the repo root even when the project is a subfolder. They only act on folders containing `agent-kit.conf`, so other folders are unaffected. `install-hooks.sh` refuses to replace a different existing hooks setup unless the human says so. The `.githooks/` folder is committed once, and each clone or new codespace runs `make hooks` once.
+**Git hooks.** Hooks are repository-wide, so they live at the repo root even when the project is a subfolder. They only act on folders containing `agent-kit.conf`, so other folders are unaffected. Once installed, git ignores `.git/hooks`, so `install-hooks.sh` checks what's there first. Standard Git LFS hooks are replaced automatically: the kit installs LFS pass-throughs, and its `pre-push` uploads LFS objects after verify passes. Any other existing hook stops the install until the human merges it or approves `FORCE=1`. The `.githooks/` folder is committed once, and each clone or new codespace runs `make hooks` once.
 
-**Ignore rules.** Make sure the project's `.gitignore` covers `.env` and `.env.*` (but not `.env.example`), local databases, and build, cache and dependency folders for the stack. The pre-commit hook catches these too, but ignore rules keep them out of `git status`.
+**Ignore rules.** Make sure the project's `.gitignore` covers `.env` and `.env.*` (but not `.env.example`), local databases, the agents' `.scratch/` folder, and build, cache and dependency folders for the stack. The pre-commit hook catches these too, but ignore rules keep them out of `git status`.
 
 **Session summaries.** If the project already has summaries with a naming scheme, keep that scheme and record it in the **Session summaries** setting in `AGENTS.md`.
 
@@ -53,3 +54,7 @@ Many AI coding tools read `AGENTS.md` directly. For a tool that reads its own fi
 - **Other tools:** a pointer file that says "Follow the instructions in AGENTS.md", if the tool can't import files.
 
 Create pointer files only for tools the human actually uses.
+
+## Tool permissions
+
+Tools that ask before running commands can usually pre-approve safe ones. Allowing the project's `make` targets and read-only git commands (`git status`, `git diff`, `git log`) removes most routine prompts, while pushes and edits to protected files still ask. Only propose this for a tool the human uses, and show the settings change for approval. For example, in Claude Code, project settings live in `.claude/settings.json` under `permissions.allow`.
