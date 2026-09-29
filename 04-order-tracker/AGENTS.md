@@ -33,6 +33,7 @@ This project is one folder of a larger repository. Work only inside this folder,
 - Run one app container at a time: SQLite has no concurrent-writer story, and the course exercise is about detecting/handling an incident, not scaling the database.
 - `ORDER_DB_PATH` controls the DB file location (default `data/orders.db`); tests instead monkeypatch `main.DB_PATH` directly, so the env var doesn't affect them.
 - Telemetry: `DEPLOYMENT_ENVIRONMENT` / `SERVICE_VERSION` (set in `compose.yaml`) feed the resource attributes. The app exports over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (Compose sets it to the Collector); console export is off unless `OTEL_CONSOLE_EXPORT=true`. Tests get in-memory OpenTelemetry providers from `tests/conftest.py`, which must be set before `app.main` is imported; `telemetry.setup()` reuses them instead of building exporters.
+- Grafana alerting provisioning (`observability/grafana/provisioning/alerting/`) doesn't expand env vars, unlike the data source file: write template variables as `$labels` (not `$$labels`), and use `{{ externalURL }}` (Grafana's root URL, from `GF_SERVER_ROOT_URL`) for links back to Grafana. Grafana re-applies provisioned rules on every start, so their `version`/`updated` go up even when nothing changed.
 
 <!-- SHARED: from _docs/agent-kit/templates/AGENTS.md.template. Change it there first, then copy it here. -->
 
