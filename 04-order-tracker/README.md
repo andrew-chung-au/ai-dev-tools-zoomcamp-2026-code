@@ -20,7 +20,21 @@ If port 8000 is occupied, set `ORDER_TRACKER_PORT`, for example:
 ORDER_TRACKER_PORT=18080 docker compose up --build -d --wait
 ```
 
-Run tests with `uv run --frozen pytest -q`. Stop the app with `docker compose down`. Add `-v` only if you also want to delete the order data.
+Run tests with `uv run --frozen pytest -q`. Stop the stack with `make stop`, which keeps the data volumes. Run `docker compose down -v` only if you also want to delete the order and telemetry data.
+
+## Observability stack
+
+`make run` also starts an OpenTelemetry Collector, Prometheus, Loki, Tempo and Grafana (config in `observability/`). Every port is bound to 127.0.0.1 and can be changed with its env var:
+
+| Service | Env var | Default | URL |
+| --- | --- | --- | --- |
+| App | `ORDER_TRACKER_PORT` | 8000 | <http://127.0.0.1:8000> |
+| Grafana | `GRAFANA_PORT` | 3000 | <http://127.0.0.1:3000> (login `admin` / `admin`, local development only) |
+| Loki (query API) | `LOKI_PORT` | 3100 | <http://127.0.0.1:3100> |
+| Tempo (query API) | `TEMPO_PORT` | 3200 | <http://127.0.0.1:3200> |
+| Prometheus | `PROMETHEUS_PORT` | 9090 | <http://127.0.0.1:9090> |
+
+The Collector's OTLP ports aren't published to the host. Port 8001 is reserved for the incident responder. Console export of telemetry is off by default; `OTEL_CONSOLE_EXPORT=true make run` turns it on, so spans, metrics and logs also show up in `make logs`.
 
 ## API
 
