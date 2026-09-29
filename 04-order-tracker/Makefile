@@ -20,11 +20,14 @@ test-one: ## Run one test file: make test-one FILE=path
 	@test -n "$(FILE)" || { echo "Usage: make test-one FILE=path/to/test_file"; exit 1; }
 	uv run --frozen pytest -q "$(FILE)"
 
-run: ## Start the app with Docker Compose
+run: ## Start the app and the observability stack (Collector, Prometheus, Loki, Tempo, Grafana)
 	docker compose up --build -d --wait
 
-stop: ## Stop the app (keeps order data; add -v by hand to delete it)
+stop: ## Stop the app and the observability stack (keeps order and telemetry data volumes)
 	docker compose down
 
 logs: ## Follow the app's logs (Ctrl-C to stop)
 	docker compose logs -f app
+
+logs-all: ## Follow the logs of the app and the observability services (Ctrl-C to stop)
+	docker compose logs -f
