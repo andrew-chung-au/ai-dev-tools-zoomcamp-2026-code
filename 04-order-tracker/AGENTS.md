@@ -26,7 +26,7 @@ This project is one folder of a larger repository. Work only inside this folder,
 - **Branching:** commit directly to `main`
 - **Commits:** commit after each meaningful change, so any step can be rolled back.
 - **Dependencies:** `uv add <package>` for runtime deps, `uv add --dev <package>` for dev deps.
-- **Session summaries:** `_session-summaries/`, named `issue-<NNN>-<short-name>.md` (issue work) or `planning-<YYYY-MM-DD>-<short-name>.md` (planning/backlog review) — the kit's default scheme, since none exists yet.
+- **Session summaries:** `_session-summaries/`, named `issue-<NNN>-<short-name>.md` (issue work) or `planning-<YYYY-MM-DD>-<short-name>.md` (planning/backlog review).
 
 ## Project gotchas
 
@@ -50,9 +50,11 @@ This project is one folder of a larger repository. Work only inside this folder,
 - Never open, print or copy `.env` files; use `.env.example`.
 - Keep all work inside this folder. Put scratch files in `.scratch/` here (git-ignored), never in `/tmp` or other outside locations.
 - Prefer your tool's built-in file reading, searching and editing over shell commands, and prefer `make` targets over raw commands. When you do use the shell, keep commands simple enough to check at a glance: literal paths instead of shell variables, one step per command instead of long chains, and `grep`, `head` or `tail` instead of `sed` or `awk` scripts for reading files.
+- Run commands from this folder; don't `cd` elsewhere and chain commands after it. When a check needs more than one simple command (loops, inline code, parsing output), write it as a script in `.scratch/` and run that, for example `python3 .scratch/check_alert.py` or `bash .scratch/check.sh`.
 - If a command is blocked or needs approval only because the tool couldn't check it, rewrite it in that simpler form and try once before asking. If the human declines a request, don't pursue the same goal another way: ask how to proceed.
 - Don't change system configuration (firewall rules, installed packages, services, git config) without the human's approval, even temporarily.
 - Never edit or delete existing issue comments; post a new comment instead. Other roles' comments are part of the record.
+- Start every issue comment with your role (`PM:`, `Engineer:`, `QA:` or `Orchestrator:`). All roles usually share one GitHub account, so the label is the only way to tell them apart.
 - Don't push. The human reviews the diff and pushes; the pre-push hook runs `make verify`.
 - Work isn't done until `make verify` passes. Never weaken or skip a test to make it pass.
 - Working a GitHub issue → `_docs/agent-kit/process.md`. The main session orchestrates; each role follows its file in `_docs/agent-kit/team/`.

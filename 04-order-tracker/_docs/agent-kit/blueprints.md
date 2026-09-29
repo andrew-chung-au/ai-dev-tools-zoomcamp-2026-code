@@ -49,7 +49,7 @@ What a project using this kit should have, when each piece applies, and how to c
 .scratch/
 ```
 
-Add local databases, and build, cache and dependency folders for the stack. Check the result with `git check-ignore -v .env.example`, which should print nothing. The pre-commit hook catches these files too, but ignore rules keep them out of `git status`.
+Add local databases, and build, cache and dependency folders for the stack. Check the result with `git check-ignore .env.example`, which should print nothing (without `-v`; with it, git also prints the `!.env.example` line that un-ignores the file). The pre-commit hook catches these files too, but ignore rules keep them out of `git status`.
 
 **Session summaries.** If the project already has summaries with a naming scheme, keep that scheme and record it in the **Session summaries** setting in `AGENTS.md`.
 
