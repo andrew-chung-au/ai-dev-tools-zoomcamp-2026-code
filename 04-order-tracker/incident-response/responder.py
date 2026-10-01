@@ -55,12 +55,6 @@ ALLOWED_TOOLS = [
     "Bash(git status:*)", "Bash(git diff:*)", "Bash(git add:*)", "Bash(git commit:*)",
 ]
 DISALLOWED_TOOLS = ["Bash(git push:*)", "Bash(curl:*)", "WebFetch", "WebSearch"]
-# Added after the task text: responder-task.md must stay word for word as approved.
-PROBE_NOTE = (
-    "How to send HTTP requests here: you can't run `curl` directly. Wherever the steps above say `curl -i`, "
-    "run `make probe URL=http://localhost:8000/<path>` instead. It runs `curl -i` and accepts only "
-    "http://localhost or http://127.0.0.1 URLs (the app is on port 8000 unless ORDER_TRACKER_PORT says otherwise)."
-)
 
 logger = logging.getLogger("responder")
 
@@ -581,7 +575,7 @@ class Responder:
             folder = incident.folder.relative_to(self.config.project_dir)
         except ValueError:
             folder = incident.folder
-        return f"{self.config.task_file.read_text().rstrip()}\n\n{PROBE_NOTE}\n\nIncident folder: {folder}\n"
+        return f"{self.config.task_file.read_text().rstrip()}\n\nIncident folder: {folder}\n"
 
     def run_agent(self, incident):
         incident.outcome = "running: the agent is working on it"

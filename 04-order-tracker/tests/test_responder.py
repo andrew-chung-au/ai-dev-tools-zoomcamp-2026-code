@@ -486,7 +486,7 @@ def test_agent_runs_in_project_folder_with_task_and_folder_and_saves_output(make
     prompt = call["argv"][1]
     assert prompt.startswith(r.TASK_FILE.read_text().rstrip())
     assert f"Incident folder: {folder.relative_to(tmp_path)}" in prompt
-    assert "make probe URL=http://localhost:8000/" in prompt and "can't run `curl` directly" in prompt
+    assert prompt == f"{r.TASK_FILE.read_text().rstrip()}\n\nIncident folder: {folder.relative_to(tmp_path)}\n"
     assert "--allowedTools" in call["argv"] and "Bash(make:*)" in call["argv"]
     assert "Bash(git push:*)" in call["argv"][call["argv"].index("--disallowedTools"):]
     assert (folder / "agent-output.txt").read_text().splitlines()[-1] == "RESULT: FALSE_POSITIVE - test alert"
@@ -668,3 +668,6 @@ def test_task_file_has_the_on_call_instructions():
     assert text.startswith("You are the on-call engineer for this project. An alert just fired.")
     assert text.rstrip().endswith(
         "7. End your answer with a single line: RESULT: <FIXED | FALSE_POSITIVE | ESCALATE> - <one-sentence summary>.")
+    assert ("4. Restart the app with `make run`, then repeat the failing request with "
+            "`make probe URL=http://localhost:8000/<path>` (which runs `curl -i`) and confirm it no longer fails. "
+            "If it still fails, go back to step 2.\n") in text
