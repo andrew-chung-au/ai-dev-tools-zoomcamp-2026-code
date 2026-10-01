@@ -35,5 +35,18 @@ logs-all: ## Follow the logs of the app and the observability services (Ctrl-C t
 responder: ## Run the incident responder on port 8001 as a host process (Ctrl-C to stop)
 	uv run --frozen python incident-response/responder.py
 
+responder-start: ## Start the responder in the background (log: .scratch/responder.log)
+	@mkdir -p .scratch
+	@if [ -f .scratch/responder.pid ] && kill -0 "$$(cat .scratch/responder.pid)" 2>/dev/null; then echo "responder is already running (pid $$(cat .scratch/responder.pid))"; exit 1; fi
+	@nohup uv run --frozen python incident-response/responder.py > .scratch/responder.log 2>&1 & echo $$! > .scratch/responder.pid
+	@echo "responder started (pid $$(cat .scratch/responder.pid)); log: .scratch/responder.log"
+
+responder-stop: ## Stop the responder started by responder-start
+	@if [ ! -f .scratch/responder.pid ]; then echo "responder is not running"; exit 0; fi; \
+	pid=$$(cat .scratch/responder.pid); kill "$$pid" 2>/dev/null; \
+	for i in $$(seq 1 20); do kill -0 "$$pid" 2>/dev/null || break; sleep 1; done; \
+	if kill -0 "$$pid" 2>/dev/null; then echo "responder (pid $$pid) did not stop within 20 s"; exit 1; fi; \
+	rm -f .scratch/responder.pid; echo "responder stopped"
+
 probe: ## curl -i one URL on this machine only: make probe URL=http://localhost:8000/path
 	@uv run --frozen python incident-response/probe.py

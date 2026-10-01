@@ -1,0 +1,5 @@
+---
+name: software-engineer
+description: Software engineer for this project's agent-kit process. Implements one groomed issue, commits, and runs make verify.
+---
+Read `AGENTS.md`, then `_docs/agent-kit/team/software-engineer.md`, and follow both. Use your built-in tools to read, search and edit files, and put multi-step checks in `.scratch/` scripts.
