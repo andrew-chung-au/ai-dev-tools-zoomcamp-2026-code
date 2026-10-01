@@ -486,6 +486,7 @@ def test_agent_runs_in_project_folder_with_task_and_folder_and_saves_output(make
     prompt = call["argv"][1]
     assert prompt.startswith(r.TASK_FILE.read_text().rstrip())
     assert f"Incident folder: {folder.relative_to(tmp_path)}" in prompt
+    assert "make probe URL=http://localhost:8000/" in prompt and "can't run `curl` directly" in prompt
     assert "--allowedTools" in call["argv"] and "Bash(make:*)" in call["argv"]
     assert "Bash(git push:*)" in call["argv"][call["argv"].index("--disallowedTools"):]
     assert (folder / "agent-output.txt").read_text().splitlines()[-1] == "RESULT: FALSE_POSITIVE - test alert"
@@ -495,8 +496,9 @@ def test_agent_runs_in_project_folder_with_task_and_folder_and_saves_output(make
 
 def test_allowed_tools_exclude_push_and_general_network():
     assert not any("push" in tool for tool in r.ALLOWED_TOOLS)
-    assert "Bash(curl:*)" not in r.ALLOWED_TOOLS
-    assert all("localhost" in t or "127.0.0.1" in t for t in r.ALLOWED_TOOLS if t.startswith("Bash(curl"))
+    assert not any("curl" in tool for tool in r.ALLOWED_TOOLS)
+    assert "Bash(curl:*)" in r.DISALLOWED_TOOLS
+    assert "Bash(make:*)" in r.ALLOWED_TOOLS  # covers `make probe URL=...`
 
 
 def test_token_does_not_reach_the_agent(make, tmp_path, monkeypatch):

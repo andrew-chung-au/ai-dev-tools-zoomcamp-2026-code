@@ -34,3 +34,6 @@ logs-all: ## Follow the logs of the app and the observability services (Ctrl-C t
 
 responder: ## Run the incident responder on port 8001 as a host process (Ctrl-C to stop)
 	uv run --frozen python incident-response/responder.py
+
+probe: ## curl -i one URL on this machine only: make probe URL=http://localhost:8000/path
+	@uv run --frozen python incident-response/probe.py
