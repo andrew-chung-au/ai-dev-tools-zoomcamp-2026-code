@@ -16,7 +16,7 @@ Propose everything before changing anything. Never delete or overwrite existing 
 
 List what exists, with evidence from the files themselves, not assumptions:
 
-- **Instructions:** `AGENTS.md`, `CLAUDE.md` and other tool instruction files, including nested ones such as `frontend/AGENTS.md`.
+- **Instructions:** `AGENTS.md`, `CLAUDE.md` and other tool instruction files, including nested ones such as `frontend/AGENTS.md`, and tool role definitions such as `.claude/agents/`.
 - **Process docs:** process files, role files, task templates, prompt collections.
 - **Spec:** `_docs/specs.md`, or wherever the product description lives.
 - **Session summaries:** the folder and its naming scheme.
@@ -36,7 +36,9 @@ For each existing item, choose one:
 
 For every row in `blueprints.md`, record **now**, **later** (with its trigger) or **not applicable**, and the evidence. In review mode, also report drift:
 
+- A shared Conventions block in `AGENTS.md` that differs from `templates/AGENTS.md.template`.
 - Command slots in `AGENTS.md` that don't match Makefile targets.
+- A long-running process (a server, a watcher) without `<name>-start` and `<name>-stop` targets.
 - Hooks not active in this clone (`git config core.hooksPath` isn't `.githooks`).
 - A newer kit hook version than the one installed at the repo root.
 - `LINT_CMD`/`TYPECHECK_CMD` still empty although the lint or type-check target now passes.
@@ -71,4 +73,4 @@ Done when:
 - Every command slot in `AGENTS.md` is a make target or "none".
 - `git config core.hooksPath` is `.githooks`.
 - The baseline `make verify` result is reported, with issues proposed for any failures.
-- No placeholders (`<...>`) or unconfirmed notes remain in `AGENTS.md`.
+- No placeholders (`<...>`) or unconfirmed notes remain in the project half of `AGENTS.md`. The shared Conventions block keeps its generic examples, such as `make <target> VAR=value`.

@@ -36,17 +36,25 @@ Layout: <top-level folders and key files>.
 - The product spec is `_docs/specs.md`. The human owns it: propose changes, and make them only after approval. If it doesn't exist yet, the project is in planning (see `_docs/agent-kit/process.md`).
 - Run project commands through `make`. If you need a command that has no target, propose a new Makefile target instead of documenting a raw command. When a target changes, propose the matching change to Commands above.
 - Change only files the current task needs. If you spot an unrelated problem, note it in the session summary instead of fixing it.
-- Ask before adding a dependency.
+- Ask before adding a dependency, or before installing anything large into `.scratch/` (browsers, toolchains). Delete such installs when the issue is done.
 - Stage explicit paths only (`git add path/to/file`). Never use `git add .`, `git add -A` or `git commit -a`.
 - Before each commit, show `git status --short`, `git diff --check`, and the exact paths being staged.
 - Protected files, listed in `agent-kit.conf` (including this file and the spec), change only with human approval. Commit them with `HUMAN_APPROVED=1` only after the human has approved that specific change in this session.
 - Never bypass git hooks with `--no-verify`. If a hook blocks you, fix the cause or ask the human.
 - Never open, print or copy `.env` files; use `.env.example`.
 - Keep all work inside this folder. Put scratch files in `.scratch/` here (git-ignored), never in `/tmp` or other outside locations.
-- Prefer your tool's built-in file reading, searching and editing over shell commands, and prefer `make` targets over raw commands. When you do use the shell, keep commands simple enough to check at a glance: literal paths instead of shell variables, one step per command instead of long chains, and `grep`, `head` or `tail` instead of `sed` or `awk` scripts for reading files.
-- Run commands from this folder; don't `cd` elsewhere and chain commands after it. When a check needs more than one simple command (loops, inline code, parsing output), write it as a script in `.scratch/` and run that, for example `python3 .scratch/check_alert.py` or `bash .scratch/check.sh`.
-- If a command is blocked or needs approval only because the tool couldn't check it, rewrite it in that simpler form and try once before asking. If the human declines a request, don't pursue the same goal another way: ask how to proceed.
-- Don't change system configuration (firewall rules, installed packages, services, git config) without the human's approval, even temporarily.
+- Don't read the AI tool's settings, your home folder or environment variables. If something depends on how the tool or the machine is set up, ask the human, or report it as a finding.
+- Edit files only with your tool's editing feature, so every change shows as a diff. Never edit files from the shell (`sed -i`, `cat >> file <<EOF`, scripts that rewrite files).
+- Prefer your tool's built-in file reading and searching over shell commands, and `make` targets over raw commands. Run commands from this folder. Every command your tool can't check stops the human for approval, so avoid these forms:
+  - Shell variables and expansions (`$VAR`, `$(...)`, `$?`). Your tool already reports exit codes.
+  - `cd` followed by other commands, and chains of several commands. Run one command, read the result, then run the next.
+  - Environment variable prefixes. Write `make <target> VAR=value`, not `VAR=value make <target>`. The one exception is `HUMAN_APPROVED=1 git commit` for an approved protected change: your tool will ask the human first, and that's intended.
+  - Paths outside this folder, including `/dev/null` and `/tmp`. Send output to `.scratch/` instead.
+  - Inline code (`python3 -c`, heredocs), loops, and `sed` or `awk` scripts. Write a script in `.scratch/` and run it, for example `python3 .scratch/check_alert.py` or `bash .scratch/check.sh`.
+- If a command is blocked or needs approval only because the tool couldn't check it, rewrite it in a simpler form and try once before asking. If the human declines a request, don't pursue the same goal another way: ask how to proceed.
+- Start long-running processes (servers, watchers) only through `<name>-start` and `<name>-stop` make targets, or a `.scratch/` script that records the process ID it started and stops only that process. Wait for results with a timeout, never an open-ended loop. Never stop a process you didn't start; ask the human.
+- Don't type injection or bypass attempts as live shell commands. Put them in tests, or in a `.scratch/` script for a one-off check.
+- Don't change system configuration (firewall rules, installed packages, services, git config) without the human's approval, even temporarily. When you ask, include the command that undoes the change, and record in the session summary whether it was undone.
 - Never edit or delete existing issue comments; post a new comment instead. Other roles' comments are part of the record.
 - Start every issue comment with your role (`PM:`, `Engineer:`, `QA:` or `Orchestrator:`). All roles usually share one GitHub account, so the label is the only way to tell them apart.
 - Don't push. The human reviews the diff and pushes; the pre-push hook runs `make verify`.

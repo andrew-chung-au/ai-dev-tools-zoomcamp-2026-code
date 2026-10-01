@@ -38,12 +38,24 @@ Each role follows its file in `_docs/agent-kit/team/`:
 
 How to run a role depends on the tool:
 
-- **If your tool can launch subagents,** the orchestrator launches each role as a subagent, tells it to read `AGENTS.md` and then its role file, and gives it the issue number. Subagents don't always receive the project's instructions automatically, so always say this explicitly.
+- **If your tool can launch subagents,** the orchestrator launches each role as a subagent. If the project has role definitions for the tool (see Role definitions in `blueprints.md`), launch those. Otherwise subagents don't always receive the project's instructions automatically, so start every launch message with: "Read `AGENTS.md`, then `_docs/agent-kit/team/<role>.md`. Use your tool's built-in features to read, search and edit files, and put multi-step checks in `.scratch/` scripts." Then give the issue number and the task.
 - **Otherwise,** run each role in a fresh session: "You are the QA engineer. Read `_docs/agent-kit/team/qa-engineer.md` and check issue #N." A fresh session is the point: the reviewer shouldn't share the context of the author.
 
 ## Orchestrator
 
 The main session is the orchestrator. It launches the roles and passes work between them. It does not plan the backlog, groom, implement or test itself.
+
+It asks the human mid-issue only when the work can't continue without an answer. Everything else waits for the decision point at the end of the issue (Lifecycle, step 7).
+
+## When a role stops early
+
+A role can stop part-way: a usage limit, a crash, a timeout or a lost connection. Before relaunching it, the orchestrator checks what it left behind:
+
+1. `git status --short` and `git log --oneline -5`: uncommitted edits or unexpected commits.
+2. The issue's text and its latest comments: a half-edited issue or a comment that stops part-way.
+3. Anything it started: running processes, temporary system changes.
+
+Treat partial output as unverified. Relaunch the role with a note of what's already done and what it must check or redo, never with what it was about to do. If something can't be repaired without a judgement call, ask the human.
 
 ## Lifecycle
 
@@ -53,8 +65,11 @@ The main session is the orchestrator. It launches the roles and passes work betw
 4. The orchestrator notes the current commit (`git rev-parse --short HEAD`), then the QA engineer checks the issue.
 5. After QA, the orchestrator runs **Assert clean** and confirms HEAD hasn't moved. If either fails, QA changed something: discard QA's verdict and run QA again.
 6. On FAIL, go back to step 3 with the QA comment as input.
-7. On PASS, if the Engineer proposed AGENTS.md changes, show them to the human as a diff. Apply them only after approval, in their own commit.
-8. Write the session summary following `_docs/agent-kit/procedures/session-summary.md`.
+7. On PASS, the **decision point**: gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, and risks QA reported outside the criteria. Show each as a diff or a short description, with your recommendation. Then:
+   - Apply approved AGENTS.md, spec and other protected-file changes in their own commits, with `HUMAN_APPROVED=1`.
+   - If an approved change needs Engineer work, go back to step 3; QA re-checks only what changed.
+   - For each risk the human wants handled later, the PM files a follow-up issue.
+8. Clean up: confirm nothing started during the issue is still running, temporary system changes are undone, and large installs in `.scratch/` are deleted. Then write the session summary following `_docs/agent-kit/procedures/session-summary.md`.
 9. Close the issue. Only the orchestrator closes issues: after QA posts PASS, or as not planned after the human approves a backlog review.
 10. The human reviews the diff and pushes (see Commits).
 11. Repeat until the backlog is empty and every part of the spec is built.

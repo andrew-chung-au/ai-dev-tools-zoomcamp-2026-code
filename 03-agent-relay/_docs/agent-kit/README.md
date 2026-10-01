@@ -1,6 +1,6 @@
 # Agent kit
 
-**Version 1.5 (2026-09-30).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
+**Version 1.6 (2026-10-01).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
 
 The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. It holds three kinds of material:
 
@@ -57,13 +57,18 @@ If the repo already has hooks, `make hooks` checks them first. Standard Git LFS 
 ## Day to day
 
 - **Work:** "Work the next issue following `_docs/agent-kit/process.md`."
-- **Approving a protected change:** once you've read the diff, tell the agent "approved, commit it with `HUMAN_APPROVED=1`", or commit it yourself.
+- **Decisions:** after QA passes, the orchestrator brings everything that needs you (AGENTS.md and spec changes, protected files, risks QA found) in one message, each with a recommendation.
+- **Approving a protected change:** once you've read the diff, tell the agent "approved, commit it with `HUMAN_APPROVED=1`", or commit it yourself. Tools that check commands will ask once more before that commit. That's intended: check that the staged paths match what you approved, then accept. Never pre-approve these commits.
 - **Pushing:** read `git diff origin/main --stat -- .` and the diff, then push. If the pre-push hook blocks you, its output says why.
 - **Checking the setup later:** "Review this project using `_docs/agent-kit/setup.md`." Review mode reports blueprints that now apply, such as a new linter, and any drift.
 
 ## Fewer approval prompts
 
-Agents trigger most approval prompts in two ways: working outside the project folder (scratch files in `/tmp`), and shell commands too complex for the tool to check. The shared conventions tell agents to use a `.scratch/` folder in the project, prefer built-in file tools and `make` targets, and write simple commands, retrying once in simpler form before asking. When you do decline a prompt, say why in your reply. The agent is told never to pursue a declined goal another way, so a reason like "use a literal path" tells it what to fix. To pre-approve routine commands in your tool, see Tool permissions in `blueprints.md`.
+Agents trigger most approval prompts in two ways: working outside the project folder (scratch files in `/tmp`, redirects to `/dev/null`, reading the tool's own settings), and shell commands too complex for the tool to check. The commonest are editing files from the shell (`sed -i`, heredoc scripts), `$?` and other shell variables, `cd … &&` chains, and settings put before a command (`VAR=x make run`). The shared Conventions list these forms and their replacements: the tool's own editor, `.scratch/` scripts, `make <target> VAR=x`, and start/stop targets for servers.
+
+A prompt is worth stopping for when it's a real decision (a design or security choice), a protected commit, or something outside the project. For the rest, approve if the purpose is fine. If you decline, say why in a few words, such as "use the Edit tool" or "no `$?`". The agent is told never to pursue a declined goal another way, so the reason tells it what to fix.
+
+To pre-approve routine commands in your tool, see Tool permissions in `blueprints.md`. Allow rules can't remove prompts for commands the tool can't analyse; only simpler commands can.
 
 ## Updating the kit
 
@@ -81,6 +86,15 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared Conventions block in `AGENTS.md` to match the template, leaving the project half unchanged, and apply any blueprint changes. Show me the diffs and wait for my approval."
 5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Include `.githooks/` at the repo root if `make hooks` changed it.
 6. Start a fresh agent session, so the new rules load.
+
+### Changes in 1.6
+
+- **Conventions:** one list of shell forms to avoid, with replacements; files are edited only with the tool's editor; no reading the tool's settings, the home folder or environment variables; servers start and stop through make targets or `.scratch/` scripts, and agents stop only processes they started; bypass attempts go in tests or scripts; requests for system changes include the undo command; large `.scratch/` installs need asking and are deleted afterwards.
+- **Process:** a standard launch message for roles; one decision point after QA passes; clean-up before the session summary; a procedure for a role that stops early.
+- **PM:** decides edge cases itself and asks only about scope, interfaces, the spec or security limits; every limit says how it's enforced, with a case that must be refused; fixed text records where it comes from; spec notes are collected, not stopped for.
+- **Engineer:** lists choices the issue doesn't cover and spec notes; adds a stub setting for anything that starts a paid or external process.
+- **QA:** a fuller comment layout; tries to get around every limit; reports risks outside the criteria separately from the verdict.
+- **Blueprints:** start/stop targets, the stub setting and role definitions for tools with named subagents. The session summary template gains decisions, temporary changes and interruptions.
 
 ## Optional: tool-native enforcement
 

@@ -26,21 +26,23 @@ ai-dev-tools-zoomcamp-2026-code/
 
 ## The Agent Kit
 
-A single folder, `_docs/agent-kit/`, copied into each project that uses it. It works with any AI coding tool that reads `AGENTS.md` and runs shell commands. It's currently setup and used in `04-order-tracker/`.
+A single folder, `_docs/agent-kit/`, copied into each project that uses it. It works with any AI coding tool that reads `AGENTS.md` and runs shell commands. It's currently set up and used in `04-order-tracker/`. Full documentation: [`04-order-tracker/_docs/agent-kit/README.md`](04-order-tracker/_docs/agent-kit/README.md).
+
+**The problem it addresses.** AI coding agents work fast, but left alone they can report their own work as done, weaken a test to get a green run, change files outside the task, or rewrite their own instructions. The kit makes the process explicit: who does what, what counts as done, what needs a human, and what gets checked automatically.
 
 **What it provides:**
 * **An agent team.** Work is organized as GitHub issues, handled by three roles defined in plain Markdown (`team/`):
   * a **PM** grooms each issue into checkable acceptance criteria;
   * an **Engineer** implements it;
-  * a **QA** agent verifies it in a fresh session and posts a PASS or FAIL verdict against each criterion.
+  * a **QA** agent verifies it separately from the Engineer and posts a PASS or FAIL verdict against each criterion. `make assert-clean` then confirms QA changed nothing, or its verdict is discarded.
 
-  The main session only orchestrates.
-* **A verification gate.** `make verify` runs the tests, a whitespace check, and a scan for weakened tests: deleted test files, new skip or focus markers, and removed assertions. Nothing is done until it passes.
+  The main session only orchestrates, and brings every decision that needs a human to one point after QA passes.
+* **A verification gate.** `make verify` runs the tests, a whitespace check, and a scan for weakened tests. Deleted test files and new skip or focus markers fail the gate. Removed assertions and changed fixtures are flagged, and each one needs a stated reason. Nothing is done until it passes.
 * **Git hooks as a safety net.** Installed once at the repo root, they act only on folders that have adopted the kit:
-  * **Pre-commit** blocks secrets, local databases and changes to protected files (the spec and the agent instructions) unless a human has approved them.
+  * **Pre-commit** blocks `.env` files, keys, local databases and other generated files. It also blocks changes to protected files (the spec, the agent instructions, the kit itself) unless a human has approved them.
   * **Pre-push** runs the verification gate.
   * **Git LFS** keeps working through pass-through hooks.
-* **Blueprints and a setup procedure.** An agent reviews a project folder, maps what already exists, and proposes the project's `AGENTS.md`, Makefile targets and settings from templates, each applied only when it becomes relevant.
+* **Blueprints and a setup procedure.** An agent reviews a project folder, maps what already exists, and proposes the project's `AGENTS.md`, Makefile targets and settings from templates, each applied only when it becomes relevant. Review mode reports drift as the project grows.
 * **Human control points.** A human approves the spec, the backlog and any change to the agent instructions, reads every diff, and does every push.
 
 **Controls are layered, and their limits are stated plainly.**
@@ -51,7 +53,22 @@ A single folder, `_docs/agent-kit/`, copied into each project that uses it. It w
 
 The kit's README documents what each layer does and doesn't guarantee.
 
-**How it evolved:** Module 1 role files → a Claude Code–specific version with hooks and subagents (in the separate Table Ready repository) → this tool-agnostic kit. Each version since has fixed problems found in real use, recorded in session summaries and issue comments.
+**In use on Order Tracker.** Module 4 questions 2 to 5 were each built as one GitHub issue, run through PM grooming, implementation, QA and human review:
+* QA found real defects before any human review. On the incident responder, it failed two criteria: the on-call agent's permission rules blocked the HTTP requests it needed, and the queue cap dropped an alert it should have queued. Both were fixed and re-checked.
+* QA also reported a risk no criterion covered: a Makefile expansion that could run arbitrary commands through the on-call agent's request wrapper. It became a follow-up issue instead of passing unnoticed.
+* Changes to protected files, such as the agent instructions and the on-call agent's task and URL check, were committed only after explicit human approval.
+
+**How it evolved:** Module 1 role files → a Claude Code–specific version with hooks and subagents (in the separate Table Ready repository) → this tool-agnostic kit, now at version 1.6. Each version fixed problems found in real use, recorded in session summaries and issue comments:
+
+| Problem found in use | Change to the kit |
+|---|---|
+| The repo's existing Git LFS hooks blocked installation | The kit's hooks call Git LFS themselves, so both work |
+| Agents' shell habits (scratch files in `/tmp`, complex or chained commands, editing files from the shell) caused constant approval prompts | Shared conventions with simpler command forms and their replacements, a project `.scratch/` folder, and `make` targets |
+| One role overwrote another role's issue comment | Comments are never edited, and each is labelled with its role |
+| Agents started servers and stopped processes by hand | Start and stop targets that only stop the process they started |
+| Decisions interrupted the human throughout an issue | One decision point after QA passes, each item with a recommendation |
+| A usage limit cut off an agent mid-task | A procedure for checking what an interrupted role left behind before relaunching it |
+| Projects already using the kit needed upgrading | A documented upgrade path, and a review mode that reports drift |
 
 ---
 
@@ -80,10 +97,10 @@ The standardized exercise for Module 3 homework:
 * **Focus:** Local containerization, PostgreSQL migration, and deployment to a local Kubernetes cluster using `kind` (Kubernetes in Docker).
 
 ### 4. Order Tracker (`04-order-tracker/`)
-The Module 4 homework, built entirely through the agent kit's issue workflow. In progress:
+The Module 4 homework, built entirely through the agent kit's issue workflow. In progress: the responder (Question 5) is done, and the end-to-end automated fix (Question 6) is next.
 * **Observability:** OpenTelemetry metrics, logs and traces exported over OTLP (the OpenTelemetry protocol) to a Collector. From there, metrics go to Prometheus, logs to Loki and traces to Tempo, with Grafana data sources and a dashboard provisioned from files. Logs link to their traces.
 * **Alerting:** A provisioned Grafana alert on 5xx responses from the order lookup endpoint.
-* **Automated incident response:** A responder service receives Grafana webhook alerts, saves a bounded, read-only evidence packet (logs and traces), and launches a headless coding agent as on-call engineer. The agent works under the same `AGENTS.md` rules and verification gate as the rest of the team.
+* **Automated incident response:** A responder service receives Grafana webhook alerts, saves a bounded, read-only evidence packet (logs and traces), and launches a headless coding agent as on-call engineer. The agent works under the same `AGENTS.md` rules and verification gate as the rest of the team, with a restricted tool list: no push, no web access, and HTTP requests only through a `make probe` wrapper that accepts localhost URLs. The README states plainly that these limits keep an honest agent on track but aren't a sandbox.
 
 ---
 
@@ -98,7 +115,7 @@ The Module 4 homework, built entirely through the agent kit's issue workflow. In
 | **Databases** | SQLite (development), PostgreSQL 16 (containers & production) |
 | **Testing** | `pytest`, `pytest-anyio`, Playwright (multi-session E2E) |
 | **Observability** | OpenTelemetry, OpenTelemetry Collector, Prometheus, Loki, Tempo, Grafana |
-| **DevOps & Containers** | Docker (multi-stage builds), Docker Compose, `kind` (Kubernetes), Make |
+| **DevOps & Containers** | Docker (multi-stage builds), Docker Compose, `kind` (Kubernetes), Make, Git hooks (Bash), GitHub Issues and the GitHub CLI |
 
 ---
 
@@ -164,8 +181,9 @@ Ports and the local Grafana login are in `04-order-tracker/README.md`.
 ## Core Engineering Principles Applied
 
 * **Context Engineering:** Centralizing project rules, tool conventions (`uv`, `bun`), and testing standards inside `AGENTS.md` to prevent agent regression and maintain reproducible sessions.
-* **Verification Over Trust:** Agents' work counts as done only when the gates have run and been observed. QA runs in a fresh session, weakened tests fail the gate, and a human reads every diff before pushing.
+* **Verification Over Trust:** Agents' work counts as done only when the gates have run and been observed. QA runs separately from the Engineer and must leave the code unchanged, weakened tests are caught by the gate, and a human reads every diff before pushing.
 * **Humans Authorize, Agents Execute:** Specs, backlogs and agent instructions change only with human approval. Enforcement is layered (instructions, git hooks, human review, optional CI), with each layer's limits documented.
+* **Improve the Process from Evidence:** Friction and failures in real agent runs are recorded, then fixed in the next version of the agent kit rather than worked around each time.
 * **Contract-Driven Development:** Defining `openapi.yaml` before backend implementation to decouple frontend design from API implementation.
 * **Database Agnosticism:** Leveraging SQLAlchemy ORM models and environment-injected `DATABASE_URL` configurations to transition seamlessly between local SQLite and containerized PostgreSQL.
 * **Single-Container Production Model:** Converting SSR frameworks to static Single Page Applications (SPA), allowing a Python/FastAPI container to serve frontend static bundles without needing a separate Node runtime in production.

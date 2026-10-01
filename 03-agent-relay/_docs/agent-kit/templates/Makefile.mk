@@ -42,3 +42,21 @@ lint: ## Run the linter
 
 typecheck: ## Run the type checker
 	<the project's type-check command>
+
+# --- Background services: one pair per long-running process -----------------
+# Replace <name> and <command>. <command> runs the process in the foreground,
+# and the process should exit cleanly on SIGTERM. If <command> is a wrapper
+# (for example `uv run`), check that it passes SIGTERM on to the process.
+
+<name>-start: ## Start <name> in the background (log: .scratch/<name>.log)
+	@mkdir -p .scratch
+	@if [ -f .scratch/<name>.pid ] && kill -0 "$$(cat .scratch/<name>.pid)" 2>/dev/null; then echo "<name> is already running (pid $$(cat .scratch/<name>.pid))"; exit 1; fi
+	@nohup <command> > .scratch/<name>.log 2>&1 & echo $$! > .scratch/<name>.pid
+	@echo "<name> started (pid $$(cat .scratch/<name>.pid)); log: .scratch/<name>.log"
+
+<name>-stop: ## Stop the <name> started by <name>-start
+	@if [ ! -f .scratch/<name>.pid ]; then echo "<name> is not running"; exit 0; fi; \
+	pid=$$(cat .scratch/<name>.pid); kill "$$pid" 2>/dev/null; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$$pid" 2>/dev/null || break; sleep 1; done; \
+	if kill -0 "$$pid" 2>/dev/null; then echo "<name> (pid $$pid) did not stop within 10 s"; exit 1; fi; \
+	rm -f .scratch/<name>.pid; echo "<name> stopped"

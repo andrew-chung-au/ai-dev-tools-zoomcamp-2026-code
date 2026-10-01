@@ -19,6 +19,8 @@ What a project using this kit should have, when each piece applies, and how to c
 | Core make targets: `help`, `verify`, `assert-clean`, `hooks` | Always, at setup | Project `Makefile` | `templates/Makefile.mk` |
 | `install`, `test` targets | The stack is known: code or a spec naming it | Project `Makefile` | `templates/Makefile.mk` |
 | `run`, `test-one`, `e2e`, `migration` targets | The project has that capability | Project `Makefile` | `templates/Makefile.mk` |
+| `<name>-start` and `<name>-stop` targets | The project has a long-running process that agents start and stop while testing (a server, a watcher, a responder) | Project `Makefile` | `templates/Makefile.mk` |
+| Stub setting for external processes | The project's code starts a paid or external process (an AI agent, a cloud service) | The project's own configuration | Added by the Engineer with the feature; see below |
 | Lint and type-check gates | A linter or type checker is installed **and** existing code passes it | `lint`/`typecheck` targets, then `LINT_CMD`/`TYPECHECK_CMD` in `agent-kit.conf` | `templates/Makefile.mk` |
 | Git hooks | Always, at setup; once per repository | `.githooks/` at the repo root, activated per clone by `make hooks` | `githooks/`, via `scripts/install-hooks.sh` |
 | Ignore rules | Always, at setup | Project `.gitignore` | See Ignore rules below |
@@ -27,6 +29,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | CI backstop | The human asks for it | `.github/workflows/` at the repo root | `templates/ci-verify.yml.template` |
 | Tool-native enforcement | The human wants hard enforcement in one specific tool | That tool's own config folder | Not in the kit; see README |
 | Tool permission allow-list | The human's tool asks for approval on routine commands | That tool's own settings file | See Tool permissions below |
+| Role definitions | The human's tool can define named subagents, and the orchestrator launches roles as subagents | That tool's agents folder, for example `.claude/agents/` | See Role definitions below |
 
 ## Notes on specific blueprints
 
@@ -35,6 +38,10 @@ What a project using this kit should have, when each piece applies, and how to c
 **Kit settings.** Set `TEST_CMD` to the test target. Adjust `TEST_FILES` to the project's test layout and `FORBIDDEN` to its secrets and generated files. Keep `PROTECTED` covering at least `AGENTS.md`, `agent-kit.conf`, the spec and the kit folder.
 
 **Make targets.** Wrap the project's existing commands; don't introduce new tools. Add missing targets to an existing Makefile, and never rename or replace existing ones. Add a `## description` comment after each existing target's name so `make help` lists it. When a target is added, the Commands section of `AGENTS.md` gets the matching slot.
+
+**Start and stop targets.** Agents trigger approval prompts, and risk stopping the wrong process, when they start a server with `&` and stop it with `pgrep` and `kill`. A target pair keeps the process ID and log in `.scratch/`, refuses to start a second copy, and stops only the process it started. Name the pair after the process, for example `responder-start` and `responder-stop`, and add both to the Commands section of `AGENTS.md`. Keep the project's foreground target (such as `make run`) for humans.
+
+**Stub setting for external processes.** Tests and smoke checks shouldn't start a real AI agent or call a paid service. When the code starts one, it gets a setting that swaps in a stub (for example `RESPONDER_AGENT_CMD`), and the tests use it. Real runs stay a manual, deliberate step.
 
 **Lint and type-check gates.** Order matters: add the targets, fix or suppress the existing errors (as an issue, through the normal process), and only then set `LINT_CMD`/`TYPECHECK_CMD`. Setting them earlier would block every push on errors nobody introduced.
 
@@ -68,4 +75,24 @@ Create pointer files only for tools the human actually uses.
 
 Tools that ask before running commands can usually pre-approve safe ones. Allowing the project's `make` targets, read-only git commands (`git status`, `git diff`, `git log`) and scripts in `.scratch/` (`python3 .scratch/…`, `bash .scratch/…`) removes most routine prompts, while pushes and edits to protected files still ask. Only propose this for a tool the human uses, and show the settings change for approval. For example, in Claude Code, project settings live in `.claude/settings.json` under `permissions.allow`.
 
+Never allow-list `git push` or commits with `HUMAN_APPROVED=1`. The prompt before an approved commit is the human's last check that what's staged is what they approved.
+
+Allow rules don't help with commands the tool can't analyse (shell variables, heredocs, chains, paths outside the folder). Those still ask whatever the allow rules say, so the only fix is the agent writing simpler commands, as the Conventions in `AGENTS.md` describe.
+
 In a monorepo, tools that restrict reads to the project folder will ask each time a kit review reads the repo-root `.githooks/`. Add that one folder to the tool's allowed directories, not the whole repo root. In Claude Code, that's `/add-dir <repo root>/.githooks` for one session, or `permissions.additionalDirectories` in `.claude/settings.local.json` to keep it.
+
+## Role definitions
+
+Some tools let a project define named subagents. The orchestrator can then launch "the QA engineer" instead of a general-purpose agent that has to be told, in each launch message, to read the project's instructions. Each definition is a short pointer, so the role files in `_docs/agent-kit/team/` stay the single source of truth.
+
+For example, in Claude Code, add one file per role in `.claude/agents/` in the project folder:
+
+```
+---
+name: qa-engineer
+description: QA engineer for this project's agent-kit process. Checks one issue against its acceptance criteria and changes nothing.
+---
+Read `AGENTS.md`, then `_docs/agent-kit/team/qa-engineer.md`, and follow both. Use your built-in tools to read, search and edit files, and put multi-step checks in `.scratch/` scripts.
+```
+
+Do the same for `pm` and `software-engineer`. Add `.claude/agents/*` to `PROTECTED` in `agent-kit.conf`, because these files decide what each role is told. Check the tool's documentation for its file format, and create definitions only for tools the human uses.
