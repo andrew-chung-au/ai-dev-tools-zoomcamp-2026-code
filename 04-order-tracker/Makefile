@@ -31,3 +31,6 @@ logs: ## Follow the app's logs (Ctrl-C to stop)
 
 logs-all: ## Follow the logs of the app and the observability services (Ctrl-C to stop)
 	docker compose logs -f
+
+responder: ## Run the incident responder on port 8001 as a host process (Ctrl-C to stop)
+	uv run --frozen python incident-response/responder.py
