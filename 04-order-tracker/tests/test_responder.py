@@ -396,6 +396,20 @@ def test_one_agent_at_a_time_and_queue_cap(make):
     assert len(dropped) == 1 and "Logs (Loki): 1 found" in dropped[0]
 
 
+def test_burst_into_idle_responder_runs_one_and_queues_three(make):
+    agent = FakeAgent(block=True)
+    responder, client = make(agent=agent)
+    alerts = [five_xx_alert(fingerprint=f"b{n}", endpoint=f"/e{n}") for n in range(5)]
+    response = post(client, body(*alerts))
+    assert response.status_code == 202
+    assert response.json()["accepted"] == ["agent"] * 4 + ["dropped"]
+    agent.release.set()
+    assert responder.wait_idle()
+    assert len(agent.prompts) == 4
+    assert agent.max_running == 1
+    assert sum("Outcome: dropped: queue full" in summary(f) for f in folders(responder)) == 1
+
+
 def test_duplicate_by_fingerprint_is_logged_and_not_queued(make, caplog):
     agent = FakeAgent(block=True)
     responder, client = make(agent=agent)

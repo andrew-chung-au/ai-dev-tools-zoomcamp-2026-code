@@ -429,9 +429,10 @@ class Responder:
         self.http = http_client or make_http_client()
         self.agent = agent_runner or AgentRunner()
         self._lock = threading.Condition()
-        self._active = set()  # keys of incidents queued or running
+        # Keys of incidents queued or running: one per incident (duplicates are refused), so at most
+        # one of them is running and the rest are waiting.
+        self._active = set()
         self._finished = set()  # (key, startsAt) of firings whose agent finished
-        self._waiting = 0  # incidents queued for the agent, not yet running
         self._pending = 0  # incidents not fully handled yet (for wait_idle)
         self._intake = deque()
         self._agent_queue = deque()
@@ -471,13 +472,13 @@ class Responder:
                 kind = "dry_run"
                 if starts_at:
                     self._finished.add((key, starts_at))
-            elif self._waiting >= MAX_QUEUED:
+            elif len(self._active) >= MAX_QUEUED + 1:  # one running plus MAX_QUEUED waiting
                 kind = "dropped"
-                logger.warning("Queue full (%d waiting): incident %s dropped, no agent run", self._waiting, name)
+                logger.warning("Queue full (1 running, %d waiting): incident %s dropped, no agent run",
+                               MAX_QUEUED, name)
             else:
                 kind = "agent"
                 self._active.add(key)
-                self._waiting += 1
             incident = Incident(alert=alert, raw_body=raw_body, received_at=received_at, key=key, kind=kind)
             incident.outcome = {
                 "agent": "queued: waiting for the agent",
@@ -529,8 +530,6 @@ class Responder:
 
     def _agent_loop(self):
         while (incident := self._next(self._agent_queue)) is not None:
-            with self._lock:
-                self._waiting -= 1
             try:
                 self.run_agent(incident)
             except Exception:
