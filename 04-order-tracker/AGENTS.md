@@ -14,6 +14,8 @@ This project is one folder of a larger repository. Work only inside this folder,
 - **Run:** `make run`: builds and starts the app plus the observability stack in `observability/`, and waits until healthy. Ports (all on 127.0.0.1, overridable by env vars) and the Grafana login are in the README.
 - **Stop:** `make stop`: stops the stack and keeps all data volumes.
 - **Logs:** `make logs` (follows the `app` service); `make logs-all` (follows every service)
+- **Responder:** `make responder`: runs the incident responder (`incident-response/`) on the host, on port 8001 (`POST /alerts`); Ctrl-C to stop. Env vars (`RESPONDER_HOST`, `RESPONDER_TOKEN`, `RESPONDER_DRY_RUN`, `LOKI_URL`, `TEMPO_URL`) are in the README.
+- **Probe:** `make probe URL=http://localhost:8000/<path>`: `curl -i` (10 s timeout) to `http://localhost` or `http://127.0.0.1` only; anything else is refused. The on-call agent's only way to send HTTP requests.
 - **Test (all):** `make test`
 - **Test (one file):** `make test-one FILE=tests/test_api.py`
 - **Verify:** `make verify`: tests, whitespace and weakened-test checks. How to use it: `_docs/agent-kit/procedures/verify.md`.
@@ -34,6 +36,7 @@ This project is one folder of a larger repository. Work only inside this folder,
 - `ORDER_DB_PATH` controls the DB file location (default `data/orders.db`); tests instead monkeypatch `main.DB_PATH` directly, so the env var doesn't affect them.
 - Telemetry: `DEPLOYMENT_ENVIRONMENT` / `SERVICE_VERSION` (set in `compose.yaml`) feed the resource attributes. The app exports over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (Compose sets it to the Collector); console export is off unless `OTEL_CONSOLE_EXPORT=true`. Tests get in-memory OpenTelemetry providers from `tests/conftest.py`, which must be set before `app.main` is imported; `telemetry.setup()` reuses them instead of building exporters.
 - Grafana alerting provisioning (`observability/grafana/provisioning/alerting/`) doesn't expand env vars, unlike the data source file: write template variables as `$labels` (not `$$labels`), and use `{{ externalURL }}` (Grafana's root URL, from `GF_SERVER_ROOT_URL`) for links back to Grafana. Grafana re-applies provisioned rules on every start, so their `version`/`updated` go up even when nothing changed.
+- Incident records go to `incident-response/incidents/` (git-ignored). The responder keeps its queue in memory only; a restart loses queued incidents.
 
 <!-- SHARED: from _docs/agent-kit/templates/AGENTS.md.template. Change it there first, then copy it here. -->
 
