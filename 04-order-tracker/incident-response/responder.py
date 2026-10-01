@@ -663,7 +663,11 @@ def main():
     logger.info("Listening on %s:%d (POST /alerts), dry run: %s, incidents in %s",
                 config.host, PORT, config.dry_run, config.incidents_dir)
     server = uvicorn.Server(uvicorn.Config(create_app(Responder(config)), log_level="info"))
-    server.run(sockets=[sock])
+    try:
+        server.run(sockets=[sock])
+    except KeyboardInterrupt:  # uvicorn re-raises Ctrl-C after its graceful shutdown
+        logger.info("Stopped")
+        return 130
     return 0
 
 
