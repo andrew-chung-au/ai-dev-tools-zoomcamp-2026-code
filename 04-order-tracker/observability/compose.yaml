@@ -2,7 +2,8 @@
 # Prometheus (metrics), Loki (logs), Tempo (traces) and Grafana.
 # Included from ../compose.yaml, so `make run` starts it with the app.
 # Every published port is bound to 127.0.0.1. Service data lives in named
-# volumes, never in the repo. Host port 8001 is reserved for the responder.
+# volumes, never in the repo. Host port 8001 is reserved for the responder,
+# which Grafana reaches at http://host.docker.internal:8001/alerts.
 
 services:
   otel-collector:
@@ -68,6 +69,14 @@ services:
       GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_LOG_LEVEL: warn
+      # Shared token for the responder webhook (spec Q6). Grafana expands
+      # ${RESPONDER_TOKEN} in the contact point file at startup, so the token
+      # lives only in this container's environment. Unset or empty: Grafana
+      # sends no Authorization header and the responder answers 401.
+      RESPONDER_TOKEN: ${RESPONDER_TOKEN:-}
+    # The responder runs on the host; this makes host.docker.internal work on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana-dashboards:ro
