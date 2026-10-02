@@ -80,8 +80,11 @@ def test_resolved_notifications_are_sent(receiver):
 
 
 def test_root_route_keeps_grafanas_default_contact_point(root_policy, contact_point):
+    # Grafana 12.4.11's default policy on a fresh database: receiver "empty" (no integrations),
+    # grouped by folder and alert name.
     assert root_policy["orgId"] == 1
-    assert root_policy["receiver"] == "grafana-default-email"
+    assert root_policy["receiver"] == "empty"
+    assert root_policy["group_by"] == ["grafana_folder", "alertname"]
     assert root_policy["receiver"] != contact_point["name"]
     assert "object_matchers" not in root_policy
     assert "matchers" not in root_policy
