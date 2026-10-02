@@ -16,7 +16,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Project instructions | Always, at setup | `AGENTS.md` in the project folder | `templates/AGENTS.md.template` |
 | Tool pointer file | The human uses a tool that doesn't read `AGENTS.md` | Project folder | See Tool pointers below |
 | Kit settings | Always, at setup | `agent-kit.conf` in the project folder | `templates/agent-kit.conf.template` |
-| Core make targets: `help`, `verify`, `assert-clean`, `hooks` | Always, at setup | Project `Makefile` | `templates/Makefile.mk` |
+| Core make targets: `help`, `verify`, `assert-clean`, `hooks`, `clean-scratch` | Always, at setup | Project `Makefile` | `templates/Makefile.mk` |
 | `install`, `test` targets | The stack is known: code or a spec naming it | Project `Makefile` | `templates/Makefile.mk` |
 | `run`, `test-one`, `e2e`, `migration` targets | The project has that capability | Project `Makefile` | `templates/Makefile.mk` |
 | `<name>-start` and `<name>-stop` targets | The project has a long-running process that agents start and stop while testing (a server, a watcher, a responder) | Project `Makefile` | `templates/Makefile.mk` |
@@ -30,6 +30,8 @@ What a project using this kit should have, when each piece applies, and how to c
 | Tool-native enforcement | The human wants hard enforcement in one specific tool | That tool's own config folder | Not in the kit; see README |
 | Tool permission allow-list | The human's tool asks for approval on routine commands | That tool's own settings file | See Tool permissions below |
 | Role definitions | The human's tool can define named subagents, and the orchestrator launches roles as subagents | That tool's agents folder, for example `.claude/agents/` | See Role definitions below |
+| Commit attribution | The human's tool adds attribution to commits or pull requests | That tool's own settings file | See Commit attribution below |
+| Known environment issues | An environment problem (firewall, disk, Docker, ports) needed the human's fix in an earlier issue | A "Known environment issues" section in the project README | See below |
 
 ## Notes on specific blueprints
 
@@ -42,6 +44,19 @@ What a project using this kit should have, when each piece applies, and how to c
 **Start and stop targets.** Agents trigger approval prompts, and risk stopping the wrong process, when they start a server with `&` and stop it with `pgrep` and `kill`. A target pair keeps the process ID and log in `.scratch/`, refuses to start a second copy, and stops only the process it started. Name the pair after the process, for example `responder-start` and `responder-stop`, and add both to the Commands section of `AGENTS.md`. Keep the project's foreground target (such as `make run`) for humans.
 
 **Stub setting for external processes.** Tests and smoke checks shouldn't start a real AI agent or call a paid service. When the code starts one, it gets a setting that swaps in a stub (for example `RESPONDER_AGENT_CMD`), and the tests use it. Real runs stay a manual, deliberate step.
+
+**Known environment issues.** When the same environment problem comes back, the human shouldn't have to work it out again from an approval prompt. Add one entry per problem to the project README, proposed at the decision point:
+
+```
+### Grafana can't reach Prometheus (codespaces)
+- Symptom: data source errors in Grafana; the 5xx alert never fires.
+- Check: docker network inspect order-tracker_default -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+- Fix (human): sudo iptables-legacy -I DOCKER-USER -s <subnet> -d <subnet> -j ACCEPT
+- Undo: sudo iptables-legacy -D DOCKER-USER -s <subnet> -d <subnet> -j ACCEPT
+- Lasts until: the codespace restarts, or the stack's network is recreated with a new subnet. Re-run the check after `make run`.
+```
+
+Agents then cite the entry in their approval request instead of rediscovering the fix.
 
 **Lint and type-check gates.** Order matters: add the targets, fix or suppress the existing errors (as an issue, through the normal process), and only then set `LINT_CMD`/`TYPECHECK_CMD`. Setting them earlier would block every push on errors nobody introduced.
 
@@ -92,7 +107,25 @@ For example, in Claude Code, add one file per role in `.claude/agents/` in the p
 name: qa-engineer
 description: QA engineer for this project's agent-kit process. Checks one issue against its acceptance criteria and changes nothing.
 ---
-Read `AGENTS.md`, then `_docs/agent-kit/team/qa-engineer.md`, and follow both. Use your built-in tools to read, search and edit files, and put multi-step checks in `.scratch/` scripts.
+Read `AGENTS.md`, then `_docs/agent-kit/team/qa-engineer.md`, and follow both. Use your built-in tools to read, search and edit files, and put multi-step checks in `.scratch/` scripts. If something needs the human's approval, return the request to the orchestrator instead of running it.
 ```
 
 Do the same for `pm` and `software-engineer`. Add `.claude/agents/*` to `PROTECTED` in `agent-kit.conf`, because these files decide what each role is told. Check the tool's documentation for its file format, and create definitions only for tools the human uses.
+
+## Commit attribution
+
+Mark AI-assisted commits with one plain line naming the tool, for example "Generated with Claude Code". Leave out co-author lines with an email address and model versions: the address may not be one you'd choose, and both go stale.
+
+In Claude Code, merge this into the project's `.claude/settings.json` (protected, so it needs an approved commit), or into the human's user settings to apply it to every project:
+
+```json
+{
+  "attribution": {
+    "commit": "Generated with Claude Code",
+    "pr": "",
+    "sessionUrl": false
+  }
+}
+```
+
+`"pr": ""` adds nothing to pull request descriptions, and `"sessionUrl": false` leaves out the session link. For other tools, check their documentation for an equivalent setting, and create it only for tools the human uses.

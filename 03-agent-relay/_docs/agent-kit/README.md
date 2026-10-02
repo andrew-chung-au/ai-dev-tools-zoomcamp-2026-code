@@ -1,6 +1,6 @@
 # Agent kit
 
-**Version 1.6 (2026-10-01).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
+**Version 1.7 (2026-10-02).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands.
 
 The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. It holds three kinds of material:
 
@@ -34,7 +34,7 @@ _docs/agent-kit/
   blueprints.md      what a project needs, and when
   process.md         lifecycle: planning, backlog, roles, verification, handover
   team/              pm.md, software-engineer.md, qa-engineer.md
-  procedures/        verify.md, session-summary.md
+  procedures/        verify.md, session-summary.md, asking-the-human.md
   templates/         AGENTS.md, agent-kit.conf, Makefile, task, session-summary and CI templates
   scripts/           verify.sh, check-staged.sh, assert-clean.sh, install-hooks.sh, lib.sh
   githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root
@@ -58,6 +58,7 @@ If the repo already has hooks, `make hooks` checks them first. Standard Git LFS 
 
 - **Work:** "Work the next issue following `_docs/agent-kit/process.md`."
 - **Decisions:** after QA passes, the orchestrator brings everything that needs you (AGENTS.md and spec changes, protected files, risks QA found) in one message, each with a recommendation.
+- **Approvals and questions:** anything that needs your approval on its merits (a system change, stopping a process, an install, anything outside the project) comes as a request first: what and why, the exact command, the risk and how to undo it, the alternatives, and a recommendation. Questions come with options and a recommendation too. See `procedures/asking-the-human.md`. If an approval prompt appears with no request before it and a description that doesn't say why, decline with "explain first".
 - **Approving a protected change:** once you've read the diff, tell the agent "approved, commit it with `HUMAN_APPROVED=1`", or commit it yourself. Tools that check commands will ask once more before that commit. That's intended: check that the staged paths match what you approved, then accept. Never pre-approve these commits.
 - **Pushing:** read `git diff origin/main --stat -- .` and the diff, then push. If the pre-push hook blocks you, its output says why.
 - **Checking the setup later:** "Review this project using `_docs/agent-kit/setup.md`." Review mode reports blueprints that now apply, such as a new linter, and any drift.
@@ -83,9 +84,21 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 1. Pause at a clean point: finish the current step, commit, and exit the agent session. `git status --short` should show nothing.
 2. From the project folder, unzip the new kit over the old one: `unzip -o <path>/agent-kit.zip`.
 3. Run `make hooks`. It upgrades older hooks and leaves current ones alone.
-4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared Conventions block in `AGENTS.md` to match the template, leaving the project half unchanged, and apply any blueprint changes. Show me the diffs and wait for my approval."
-5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Include `.githooks/` at the repo root if `make hooks` changed it.
+4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared Conventions block in `AGENTS.md` to match the template, leaving the project half unchanged, and apply any blueprint changes. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
+5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Check that `_docs/agent-kit/` is among the staged paths. Include `.githooks/` at the repo root if `make hooks` changed it.
 6. Start a fresh agent session, so the new rules load.
+
+### Changes in 1.7
+
+- **Asking the human:** a new procedure, `procedures/asking-the-human.md`. Every command's description says what it does and why, naming the issue and step. Anything that needs approval on its merits gets an approval request before the command runs: what and why, the exact command, risk and undo, alternatives, and a recommendation. Decisions come as decision questions with options and a recommendation.
+- **Subagents:** the human can't see a subagent's messages, so a subagent returns its request to the orchestrator instead of running the command. The orchestrator passes the request on in full and resumes the role with the answer.
+- **Approval requests also cover:** whether the request came up before; a check run just now for any addresses or IDs in the command; risk with duration; and alternatives that fix the cause or let the human run the command, so agents don't need `sudo`.
+- **Known environment issues:** a new blueprint. A problem that needed the human's fix more than once gets a README entry (symptom, check, fix, undo), which later requests point to.
+- **Deletions and safety blocks:** agents don't delete files or data they didn't create, including git-ignored files and Docker volumes, which **Assert clean** can't see. When the tool blocks an action as risky, the agent stops and reports instead of trying variations. The orchestrator then shows the human each blocked command, checks what changed, and proposes resuming or starting the role fresh.
+- **Destructive checks:** when checking a criterion needs a destructive step, such as deleting a Docker volume, the PM says so when grooming, and the human performs that step.
+- **`make clean-scratch`:** a new core target. At the end of every issue the orchestrator empties `.scratch/`, including test tokens and copied session logs, after proposing any script worth keeping as a test or make target. It refuses while a process started with `<name>-start` is still running.
+- **Upgrades:** the upgrade prompt asks for the exact `git add` paths, including the kit folder.
+- **Commit attribution:** a new blueprint. AI-assisted commits carry one plain line, "Generated with Claude Code", set in the tool's settings, with no co-author email or model version. Agents don't add their own co-author lines.
 
 ### Changes in 1.6
 
