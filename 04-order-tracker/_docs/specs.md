@@ -67,14 +67,16 @@ The homework's test commands depend on these. They must not change.
 - The bind address comes from `RESPONDER_HOST`, default `127.0.0.1`. Grafana's container can't reach the host's loopback, so Q6 runs the responder on a non-loopback address. This is the only exception to binding to `127.0.0.1`.
 - On a non-loopback address the responder requires a shared token (`RESPONDER_TOKEN`): it refuses to start without one, and rejects requests whose `Authorization` header doesn't carry it. On the default `127.0.0.1` no token is needed.
 - On each firing alert, save an incident record with what's needed to understand the problem: alert name, status, labels/annotations, affected endpoint, dashboard URL, and the related logs (Loki) and traces (Tempo) for the alert window.
-- Then start the coding assistant **in headless mode** (`claude -p`) in this folder, with the incident record and an on-call prompt along these lines:
+- Then, unless the alert is a telemetry problem (next bullet), start the coding assistant **in headless mode** (`claude -p`) in this folder, with the incident record and an on-call prompt along these lines:
   > You are the on-call engineer for this repository. An alert just fired. Investigate the root cause. Read the code and reproduce the failure. If you find a real bug, make the smallest correction, run the tests, restart the app, verify the failing request now succeeds, and commit the fix with a clear message. If the alert is a test or a false positive, explain why and do not change the code.
+- **Telemetry problems:** Grafana's `DatasourceError` and `DatasourceNoData` alerts mean an alert rule couldn't query its data source (for example, Prometheus is down), not that the app failed. The responder still saves the incident record, marks it as a telemetry problem, and starts no agent.
 - Save the agent's full output with the incident.
 - Respond quickly (2xx) to the webhook sender. The agent runs asynchronously, one at a time.
 - Check: send the ResponderTest payload, wait for the agent to finish, and read its response (including the last line). The agent should report that there's nothing to fix and change nothing.
 
 ### Q6: End-to-end incident
 - Connect the Q4 alert to the responder with a provisioned Grafana **webhook contact point** → `http://host.docker.internal:8001/alerts`, sending the responder's shared token in the `Authorization` header.
+- The Q4 rule's `DatasourceError` alert (raised when the rule can't query Prometheus) carries the same labels, so it goes to the responder too. The responder records it as a telemetry problem and starts no agent (Q5).
 - Check: request `GET /api/orders/express-1002` (repeat if needed) → the alert fires → Grafana sends the webhook → the responder starts the agent → the agent finds and fixes the root cause, restarts the app and verifies that the same request no longer fails.
 - The fix follows normal project rules: a regression test, `make verify` passes, commit to `main`, no push.
 
