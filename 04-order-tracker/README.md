@@ -86,6 +86,42 @@ Incidents are saved in `incident-response/incidents/<UTC timestamp>-<alertname>/
 
 The alert window runs from the alert's `startsAt` minus its `window` label (default 5 minutes) to the time the alert arrived, at most 1 hour; without `startsAt`, the last 15 minutes. Loki and Tempo requests time out after 5 seconds.
 
+## Grafana to responder webhook
+
+Grafana delivers the 5xx alert to the responder by itself. Both are provisioned from `observability/grafana/provisioning/alerting/order-tracker-notifications.json`, with no manual steps:
+
+- Contact point **Order Tracker responder**: a webhook `POST http://host.docker.internal:8001/alerts` with `Authorization: Bearer <RESPONDER_TOKEN>`. Resolved notifications are sent too; the responder ignores them.
+- Notification policy: alerts labelled `owner=order-tracker-oncall` (the 5xx rule and its `DatasourceError`) go to that contact point, grouped by `alertname` and `endpoint`, with group wait 30s, group interval 5m and repeat interval 4h. Every other alert stays on Grafana's default contact point (`empty`, which sends nothing).
+- Grafana's service maps `host.docker.internal` to the host (`extra_hosts: host-gateway`), so the address works on Linux too.
+
+### Give Grafana and the responder the same token
+
+Grafana reads `RESPONDER_TOKEN` from its container environment when it starts, and fills it into the contact point. The token is never written to a file in the repo. Grafana's UI and its provisioning API show it as `[REDACTED]`. Use a token of letters and digits only, because Grafana treats `$` in that file as the start of a variable:
+
+```bash
+export RESPONDER_TOKEN=$(openssl rand -hex 32)   # in the shell you run both commands from
+make run                                         # Grafana gets the token
+make responder RESPONDER_HOST=172.17.0.1         # the responder checks it
+```
+
+- `make run` passes `RESPONDER_TOKEN` to Grafana from your shell or, if the shell doesn't set it, from a `.env` file in this folder (Compose reads it). Grafana is created with the token it sees at that moment. To change it, run `make run` again with the new value, and Compose recreates Grafana. A later `make run` without the token in the shell or `.env` recreates Grafana without it.
+- The responder doesn't read `.env`. It only sees the environment of the shell that starts it, so export the token there (or pass it after the target, as with `RESPONDER_HOST` above).
+- Without a token (unset or empty), `make run` still works, but Grafana sends no `Authorization` header and every delivery gets 401.
+
+### Which `RESPONDER_HOST`
+
+`host.docker.internal` resolves, inside Grafana's container, to the Docker host-gateway address. That's usually the `docker0` bridge address, `172.17.0.1` (check with `ip -4 addr show docker0`, or `docker compose exec grafana getent hosts host.docker.internal`). Bind the responder to that address:
+
+- `127.0.0.1` (the default) doesn't work: Grafana's container can't reach the host's loopback.
+- `172.17.0.1` is reachable from containers on this host but not from other machines, so it exposes less than `0.0.0.0`, which listens on every interface.
+
+Any address other than loopback needs `RESPONDER_TOKEN`, so the responder won't start without it. If your machine's firewall blocks containers from reaching the host, deliveries fail with a connection error; check that before changing the bind address.
+
+### Check a delivery
+
+- In Grafana: **Alerting → Contact points → Order Tracker responder**. The list shows the last delivery attempt and, if it failed, the error (for example `401 Unauthorized` for a token mismatch, or `connection refused` when the responder isn't running).
+- In the responder's output: one `POST /alerts` line with `202` per delivery. Each firing alert creates one folder under `incident-response/incidents/`; repeat notifications of the same firing and resolved notifications don't.
+
 ## API
 
 | Method | Path | Purpose |
