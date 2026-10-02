@@ -122,6 +122,16 @@ Any address other than loopback needs `RESPONDER_TOKEN`, so the responder won't 
 - In Grafana: **Alerting → Contact points → Order Tracker responder**. The list shows the last delivery attempt and, if it failed, the error (for example `401 Unauthorized` for a token mismatch, or `connection refused` when the responder isn't running).
 - In the responder's output: one `POST /alerts` line with `202` per delivery. Each firing alert creates one folder under `incident-response/incidents/`; repeat notifications of the same firing and resolved notifications don't.
 
+## Known environment issues
+
+### Grafana can't reach Prometheus (codespaces)
+
+- Symptom: data source errors in Grafana; the 5xx alert rule stays in Error (`DatasourceError`) and never fires.
+- Check: `docker network inspect order-tracker_default -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` prints the stack's subnet (default `10.215.24.0/24`, set by `ORDER_TRACKER_SUBNET`); `sudo iptables-legacy -S DOCKER-USER` shows whether the rule below is present.
+- Fix (human): `sudo iptables-legacy -I DOCKER-USER -s 10.215.24.0/24 -d 10.215.24.0/24 -j ACCEPT`
+- Undo: `sudo iptables-legacy -D DOCKER-USER -s 10.215.24.0/24 -d 10.215.24.0/24 -j ACCEPT`
+- Lasts until: the codespace restarts, or the stack's network is recreated with a new subnet. Re-run the check after `make run`.
+
 ## API
 
 | Method | Path | Purpose |
