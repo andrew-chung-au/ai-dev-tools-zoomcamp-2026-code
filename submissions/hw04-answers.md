@@ -29,22 +29,18 @@ All placeholders are clearly marked so I can update them later.
 ## 4. Wait for the alert to evaluate. What state does Grafana show?
 
 **Answer:**  
-- [PLACEHOLDER: Select from Normal / Firing / Pending / No data]
+- Normal
 
 ---
 
 ## 5. What did the agent respond? Include the last line from its answer.
 
 **Answer:**  
-- [PLACEHOLDER: Paste the last line from the agent's answer here]
+- > RESULT: FALSE_POSITIVE - The alert is labelled test="true" ("Test notification; no incident to fix") and the logs and traces show no errors in the alert window, so no fix is needed.
 
 ---
 
 ## 6. What was the problem?
 
 **Answer:**  
-- [PLACEHOLDER: Select one of the following:
-  * The express delivery date calculation tried to use a day that does not exist in that month.
-  * The order timestamp could not be parsed because it had no time zone.
-  * The app rejected the order's preparing status.
-  * The lookup searched the wrong database column for express orders.]
+- The express delivery date calculation tried to use a day that does not exist in that month.
