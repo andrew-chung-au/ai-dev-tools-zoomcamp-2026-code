@@ -14,6 +14,19 @@ def client(tmp_path, monkeypatch):
         yield test_client
 
 
+@pytest.fixture
+def failing_lookup(monkeypatch):
+    """Make the express-1002 lookup raise, to exercise the server-error path."""
+    original = main.order_detail
+
+    def order_detail(row):
+        if row["id"] == "express-1002":
+            raise ValueError("simulated server error")
+        return original(row)
+
+    monkeypatch.setattr(main, "order_detail", order_detail)
+
+
 def server_spans(telemetry, route=ROUTE):
     return [
         span
@@ -26,7 +39,7 @@ def server_spans(telemetry, route=ROUTE):
     ("order_id", "status"),
     [("standard-1001", 200), ("standard-1002", 404), ("express-1002", 500)],
 )
-def test_lookup_is_recorded_with_route_template_and_status(client, telemetry, order_id, status):
+def test_lookup_is_recorded_with_route_template_and_status(client, telemetry, failing_lookup, order_id, status):
     lookup = {"http.route": ROUTE, "http.request.method": "GET", "http.response.status_code": status}
     before = telemetry.request_count(**lookup)
 
@@ -65,7 +78,7 @@ def test_method_separates_get_from_patch_on_the_same_route(client, telemetry):
     assert telemetry.request_count(**patch) == before + 1
 
 
-def test_server_error_span_records_the_exception(client, telemetry):
+def test_server_error_span_records_the_exception(client, telemetry, failing_lookup):
     assert client.get("/api/orders/express-1002").status_code == 500
 
     [span] = server_spans(telemetry)
